@@ -14,16 +14,32 @@ interface Tutor {
   email?: string
 }
 
+interface Review {
+  id: string
+  tutor_email: string
+  student_email: string
+  rating: number
+  comment: string
+  created_at: string
+}
+
 export default function Home() {
   const [tutors, setTutors] = useState<Tutor[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [isTutor, setIsTutor] = useState(false)
   const [isStudent, setIsStudent] = useState(false)
   const [hasUnread, setHasUnread] = useState(false)
-  const router = useRouter()
 
+  // State สำหรับ Modal รีวิว
+  const [selectedTutorForReview, setSelectedTutorForReview] = useState<Tutor | null>(null)
+  const [newRating, setNewRating] = useState(5)
+  const [newComment, setNewComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+
+  const router = useRouter()
   const ADMIN_EMAIL = 'system_admin@platform.com'
 
   useEffect(() => {
@@ -68,7 +84,11 @@ export default function Home() {
       setIsTutor((tutorData || []).some((t) => t.email === email))
     }
 
-    // 2. เช็กสิทธิ์ตารางนักเรียน
+    // 2. ดึงข้อมูลรีวิวทั้งหมด
+    const { data: reviewData } = await supabase.from('reviews').select('*').order('created_at', { ascending: false })
+    setReviews(reviewData || [])
+
+    // 3. เช็กสิทธิ์ตารางนักเรียน
     const { data: studentData } = await supabase
       .from('students')
       .select('*')
@@ -77,7 +97,7 @@ export default function Home() {
 
     setIsStudent(!!studentData)
 
-    // 3. เช็กข้อความที่มีเข้ามาเพื่อเปิดจุดแจ้งเตือน
+    // 4. เช็กข้อความที่มีเข้ามาเพื่อเปิดจุดแจ้งเตือน
     const { data: recentMsg } = await supabase
       .from('messages')
       .select('*')
@@ -89,6 +109,52 @@ export default function Home() {
     }
 
     setLoading(false)
+  }
+
+  // คำนวณคะแนนดาวเฉลี่ยของติวเตอร์
+  const getTutorRatingInfo = (tutorEmail?: string) => {
+    if (!tutorEmail) return { avg: '0.0', count: 0 }
+    const tutorReviews = reviews.filter((r) => r.tutor_email === tutorEmail)
+    if (tutorReviews.length === 0) return { avg: '0.0', count: 0 }
+    const sum = tutorReviews.reduce((acc, r) => acc + r.rating, 0)
+    return {
+      avg: (sum / tutorReviews.length).toFixed(1),
+      count: tutorReviews.length
+    }
+  }
+
+  // ฟังก์ชันส่งรีวิวใหม่
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedTutorForReview || !selectedTutorForReview.email) return
+    if (!newComment.trim()) {
+      alert('กรุณากรอกความคิดเห็นก่อนส่งรีวิวครับ')
+      return
+    }
+
+    setSubmittingReview(true)
+
+    const { error } = await supabase.from('reviews').insert([
+      {
+        tutor_email: selectedTutorForReview.email,
+        student_email: userEmail,
+        rating: newRating,
+        comment: newComment.trim()
+      }
+    ])
+
+    if (error) {
+      alert('เกิดข้อผิดพลาดในการส่งรีวิว: ' + error.message)
+    } else {
+      alert('ขอบคุณสำหรับรีวิวครับ!')
+      setNewComment('')
+      setNewRating(5)
+      // ดึงข้อมูลรีวิวมาอัปเดตใหม่
+      const { data: updatedReviews } = await supabase.from('reviews').select('*').order('created_at', { ascending: false })
+      setReviews(updatedReviews || [])
+    }
+
+    setSubmittingReview(false)
   }
 
   const handleLogout = async () => {
@@ -111,9 +177,9 @@ export default function Home() {
   )
 
   return (
-    <main className="min-h-screen bg-slate-50/60 text-slate-800">
+    <main className="min-h-screen bg-slate-50/60 text-slate-800 relative">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 px-6 py-4 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 px-6 py-4 shadow-sm">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-600/20">
@@ -224,55 +290,161 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTutors.map((tutor) => (
-            <div key={tutor.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-lg shadow-slate-200/50 flex flex-col justify-between hover:-translate-y-1.5 transition-all duration-300">
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-lg shadow-sm">
-                      {tutor.name.charAt(0)}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-base text-slate-800 leading-tight">{tutor.name}</h4>
-                      {tutor.nickname && (
-                        <span className="text-xs font-medium text-slate-400 block mt-0.5">({tutor.nickname})</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="bg-indigo-50 text-indigo-600 text-[11px] font-extrabold px-3 py-1 rounded-full border border-indigo-100/50">
-                    {tutor.subject}
-                  </span>
-                </div>
-                <p className="text-slate-500 text-xs leading-relaxed mb-6 line-clamp-3 bg-slate-50 p-3 rounded-2xl border border-slate-100/80">
-                  {tutor.bio}
-                </p>
-              </div>
-
-              {/* ปุ่มแชท และ ปุ่มจองเรียน/สแกนจ่าย */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          {filteredTutors.map((tutor) => {
+            const { avg, count } = getTutorRatingInfo(tutor.email)
+            return (
+              <div key={tutor.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-lg shadow-slate-200/50 flex flex-col justify-between hover:-translate-y-1.5 transition-all duration-300">
                 <div>
-                  <span className="text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
-                  <span className="text-lg font-black text-emerald-600">{tutor.price} <span className="text-xs font-medium text-slate-400">บาท/ชม.</span></span>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-lg shadow-sm">
+                        {tutor.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-base text-slate-800 leading-tight">{tutor.name}</h4>
+                        {tutor.nickname && (
+                          <span className="text-xs font-medium text-slate-400 block mt-0.5">({tutor.nickname})</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="bg-indigo-50 text-indigo-600 text-[11px] font-extrabold px-3 py-1 rounded-full border border-indigo-100/50">
+                      {tutor.subject}
+                    </span>
+                  </div>
+
+                  {/* แถบดาวและคะแนนรีวิว */}
+                  <div className="flex items-center justify-between bg-amber-50/60 border border-amber-100/80 px-3 py-2 rounded-2xl mb-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-amber-500 font-bold text-xs">⭐ {count > 0 ? avg : 'ใหม่'}</span>
+                      <span className="text-[11px] text-slate-400 font-medium">({count} รีวิว)</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedTutorForReview(tutor)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
+                    >
+                      💬 ดูรีวิว / ให้ดาว
+                    </button>
+                  </div>
+
+                  <p className="text-slate-500 text-xs leading-relaxed mb-6 line-clamp-3 bg-slate-50 p-3 rounded-2xl border border-slate-100/80">
+                    {tutor.bio}
+                  </p>
                 </div>
-                <div className="flex gap-1.5">
-                  <Link 
-                    href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl transition"
-                  >
-                    แชท
-                  </Link>
-                  <Link 
-                    href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20"
-                  >
-                    จองเรียน / สแกนจ่าย
-                  </Link>
+
+                {/* ปุ่มแชท และ ปุ่มจองเรียน/สแกนจ่าย */}
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
+                    <span className="text-lg font-black text-emerald-600">{tutor.price} <span className="text-xs font-medium text-slate-400">บาท/ชม.</span></span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Link 
+                      href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl transition"
+                    >
+                      แชท
+                    </Link>
+                    <Link 
+                      href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20"
+                    >
+                      จองเรียน / สแกนจ่าย
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
+
+      {/* Modal ดูรีวิวและเขียนคอมเมนต์ */}
+      {selectedTutorForReview && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 relative max-h-[85vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3 sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-800">
+                  ⭐ รีวิวของ {selectedTutorForReview.name}
+                </h3>
+                <p className="text-xs text-slate-400">วิชา {selectedTutorForReview.subject}</p>
+              </div>
+              <button
+                onClick={() => setSelectedTutorForReview(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* ฟอร์มเขียนรีวิว (สำหรับนักเรียน) */}
+            {isStudent && (
+              <form onSubmit={handleAddReview} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700">✍️ เขียนรีวิว / ให้ดาวติวเตอร์คนนี้</h4>
+                
+                {/* เลือกคะแนนดาว 1-5 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium">ให้คะแนน:</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setNewRating(star)}
+                        className={`text-lg transition-transform ${star <= newRating ? 'scale-110' : 'opacity-30'}`}
+                      >
+                        ⭐
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-amber-600 ml-1">{newRating} ดาว</span>
+                </div>
+
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="พิมพ์ความคิดเห็นเกี่ยวกับการสอนของติวเตอร์..."
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                />
+
+                <button
+                  type="submit"
+                  disabled={submittingReview}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition disabled:bg-slate-300"
+                >
+                  {submittingReview ? 'กำลังส่งรีวิว...' : 'ส่งรีวิว'}
+                </button>
+              </form>
+            )}
+
+            {/* รายการรีวิวทั้งหมด */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-700">💬 ความคิดเห็นทั้งหมด</h4>
+              {(() => {
+                const tutorReviews = reviews.filter((r) => r.tutor_email === selectedTutorForReview.email)
+                if (tutorReviews.length === 0) {
+                  return <p className="text-center text-xs text-slate-400 py-6">ยังไม่มีรีวิวสำหรับติวเตอร์คนนี้</p>
+                }
+                return tutorReviews.map((r) => (
+                  <div key={r.id} className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-800">{r.student_email}</span>
+                      <span className="text-amber-500 font-bold">{'⭐'.repeat(r.rating)}</span>
+                    </div>
+                    <p className="text-slate-600 leading-relaxed">{r.comment}</p>
+                    <span className="text-[10px] text-slate-400 block pt-1">
+                      {new Date(r.created_at).toLocaleDateString('th-TH')}
+                    </span>
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
