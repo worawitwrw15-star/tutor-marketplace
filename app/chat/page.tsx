@@ -14,6 +14,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [userEmail, setUserEmail] = useState<string>('')
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     getUser()
@@ -22,7 +23,11 @@ export default function ChatPage() {
     const channel = supabase
       .channel('chat_room')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message])
+        setMessages((prev) => {
+          // ป้องกันข้อความซ้ำ
+          if (prev.some((msg) => msg.id === payload.new.id)) return prev
+          return [...prev, payload.new as Message]
+        })
       })
       .subscribe()
 
@@ -41,16 +46,34 @@ export default function ChatPage() {
   }
 
   async function fetchMessages() {
-    const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: true })
-    setMessages(data || [])
+    const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: true })
+    if (error) console.error('Error fetching messages:', error)
+    else setMessages(data || [])
   }
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    if (!input.trim() || sending) return
 
-    await supabase.from('messages').insert([{ sender: userEmail, content: input }])
+    setSending(true)
+    const textToSend = input
     setInput('')
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert([{ sender: userEmail, content: textToSend }])
+      .select()
+
+    if (error) {
+      alert('ส่งข้อความไม่สำเร็จ: ' + error.message)
+      setInput(textToSend) // คืนข้อความกลับเข้าช่องพิมพ์
+    } else if (data && data.length > 0) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data[0].id)) return prev
+        return [...prev, data[0] as Message]
+      })
+    }
+    setSending(false)
   }
 
   return (
@@ -99,9 +122,10 @@ export default function ChatPage() {
           />
           <button
             type="submit"
-            className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 transition"
+            disabled={sending}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 transition disabled:bg-gray-400"
           >
-            ส่ง
+            {sending ? 'กำลังส่ง...' : 'ส่ง'}
           </button>
         </form>
       </div>
