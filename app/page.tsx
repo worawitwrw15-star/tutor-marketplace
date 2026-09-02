@@ -21,11 +21,31 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState('')
   const [isTutor, setIsTutor] = useState(false)
   const [isStudent, setIsStudent] = useState(false)
+  const [hasUnread, setHasUnread] = useState(false) // สถานะแจ้งเตือนแชทใหม่
   const router = useRouter()
 
   useEffect(() => {
     checkUserAndFetchData()
   }, [])
+
+  // ดักฟัง Realtime เมื่อมีข้อความใหม่ส่งมาหาเรา
+  useEffect(() => {
+    if (!userEmail) return
+
+    const channel = supabase
+      .channel('unread_messages_home')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const newMsg = payload.new
+        if (newMsg.receiver === userEmail) {
+          setHasUnread(true)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userEmail])
 
   async function checkUserAndFetchData() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -46,7 +66,7 @@ export default function Home() {
       setIsTutor((tutorData || []).some((t) => t.email === email))
     }
 
-    // 2. เช็กว่าผู้ใช้ปัจจุบันมีโปรไฟล์อยู่ในตารางนักเรียนหรือไม่
+    // 2. เช็กสิทธิ์ตารางนักเรียน
     const { data: studentData } = await supabase
       .from('students')
       .select('*')
@@ -54,6 +74,18 @@ export default function Home() {
       .maybeSingle()
 
     setIsStudent(!!studentData)
+
+    // 3. เช็กข้อความที่ส่งมาหาเราเพื่อเปิดจุดแจ้งเตือน
+    const { data: recentMsg } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('receiver', email)
+      .limit(1)
+
+    if (recentMsg && recentMsg.length > 0) {
+      setHasUnread(true)
+    }
+
     setLoading(false)
   }
 
@@ -103,8 +135,19 @@ export default function Home() {
               </Link>
             ) : null}
 
-            <Link href="/chat" className="px-4 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5">
+            {/* ปุ่มห้องแชท พร้อมจุดแจ้งเตือนแชทใหม่สีแดงกระพริบ */}
+            <Link 
+              href="/chat" 
+              onClick={() => setHasUnread(false)}
+              className="relative px-4 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5"
+            >
               <span>💬</span> ห้องแชท
+              {hasUnread && (
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-white"></span>
+                </span>
+              )}
             </Link>
 
             <button 
