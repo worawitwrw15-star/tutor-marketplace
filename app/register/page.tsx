@@ -12,6 +12,7 @@ export default function RegisterTutorPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -28,7 +29,6 @@ export default function RegisterTutorPage() {
     const email = session.user.email
     setUserEmail(email)
 
-    // ตรวจสอบว่ามีโปรไฟล์ติวเตอร์เดิมอยู่แล้วหรือไม่
     const { data, error } = await supabase
       .from('tutors')
       .select('*')
@@ -38,7 +38,6 @@ export default function RegisterTutorPage() {
     if (error) {
       console.error('Error fetching profile:', error)
     } else if (data) {
-      // มีข้อมูลเดิม -> เปลี่ยนเข้าสู่โหมดแก้ไขข้อมูล
       setName(data.name || '')
       setSubject(data.subject || '')
       setPrice(data.price ? String(data.price) : '')
@@ -54,7 +53,6 @@ export default function RegisterTutorPage() {
     setSubmitting(true)
 
     if (isEditMode) {
-      // อัปเดตข้อมูลเดิม
       const { error } = await supabase
         .from('tutors')
         .update({
@@ -72,7 +70,6 @@ export default function RegisterTutorPage() {
         router.push('/')
       }
     } else {
-      // สร้างโปรไฟล์ใหม่
       const { error } = await supabase
         .from('tutors')
         .insert([
@@ -88,6 +85,26 @@ export default function RegisterTutorPage() {
     }
 
     setSubmitting(false)
+  }
+
+  // ฟังก์ชันสำหรับลบประกาศ/โปรไฟล์ติวเตอร์
+  const handleDelete = async () => {
+    const confirmDelete = confirm('คุณแน่ใจหรือไม่ว่าต้องการลบประกาศติวเตอร์นี้? ข้อมูลจะไม่สามารถกู้คืนได้')
+    if (!confirmDelete) return
+
+    setDeleting(true)
+    const { error } = await supabase
+      .from('tutors')
+      .delete()
+      .eq('email', userEmail)
+
+    if (error) {
+      alert('เกิดข้อผิดพลาดในการลบ: ' + error.message)
+    } else {
+      alert('ลบประกาศติวเตอร์เรียบร้อยแล้ว!')
+      router.push('/')
+    }
+    setDeleting(false)
   }
 
   if (loading) {
@@ -155,12 +172,25 @@ export default function RegisterTutorPage() {
 
           <button 
             type="submit" 
-            disabled={submitting}
+            disabled={submitting || deleting}
             className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:bg-gray-400"
           >
             {submitting ? 'กำลังบันทึก...' : isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูลติวเตอร์'}
           </button>
         </form>
+
+        {/* ปุ่มลบประกาศ จะแสดงเฉพาะติวเตอร์ที่มีโปรไฟล์แล้วเท่านั้น */}
+        {isEditMode && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <button
+              onClick={handleDelete}
+              disabled={submitting || deleting}
+              className="w-full bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-lg text-sm font-medium hover:bg-red-100 transition disabled:opacity-50"
+            >
+              {deleting ? 'กำลังลบประกาศ...' : 'ลบประกาศติวเตอร์นี้'}
+            </button>
+          </div>
+        )}
       </div>
     </main>
   )
