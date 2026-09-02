@@ -113,21 +113,37 @@ export default function AdminDashboard() {
     setSavingSettings(false)
   }
 
-  // ยืนยันโอนเงินต่อให้ติวเตอร์
-  const handleTransferToTutor = async (paymentId: string) => {
-    if (!confirm('ยืนยันว่าคุณได้โอนเงินส่วนของติวเตอร์เข้าบัญชีเรียบร้อยแล้ว?')) return
+  // ยืนยันโอนเงินต่อให้ติวเตอร์ พร้อมส่งแชทแจ้งเตือนอัตโนมัติ
+  const handleTransferToTutor = async (payment: Payment) => {
+    if (!confirm(`ยืนยันว่าได้โอนเงินจำนวน ${Number(payment.tutor_amount).toLocaleString()} บาท ให้ติวเตอร์ (${payment.tutor_email}) เรียบร้อยแล้ว?`)) return
 
-    const { error } = await supabase
+    // 1. อัปเดตสถานะในตาราง payments
+    const { error: updateError } = await supabase
       .from('payments')
-      .update({ paid_to_tutor: true, paid_at: new Date().toISOString() })
-      .eq('id', paymentId)
+      .update({
+        paid_to_tutor: true,
+        paid_at: new Date().toISOString()
+      })
+      .eq('id', payment.id)
 
-    if (error) {
-      alert('เกิดข้อผิดพลาด: ' + error.message)
-    } else {
-      alert('บันทึกสถานะการโอนเงินเรียบร้อยแล้ว!')
-      fetchAdminData()
+    if (updateError) {
+      alert('เกิดข้อผิดพลาดในการอัปเดต: ' + updateError.message)
+      return
     }
+
+    // 2. ส่งข้อความแจ้งเตือนอัตโนมัติไปที่ห้องแชทของติวเตอร์
+    const notifyMsg = `💸 [แจ้งโอนเงินค่าสอน] ทางแพลตฟอร์มได้โอนเงินยอดสุทธิ ${Number(payment.tutor_amount).toLocaleString()} บาท สำหรับรายการสอนของนักเรียน (${payment.student_email}) เข้าบัญชีธนาคารของคุณเรียบร้อยแล้วครับ`
+    
+    await supabase.from('messages').insert([
+      { 
+        sender: 'system_admin@platform.com', 
+        receiver: payment.tutor_email, 
+        content: notifyMsg 
+      }
+    ])
+
+    alert('บันทึกสถานะเรียบร้อย และส่งข้อความแจ้งเตือนไปยังแชทของติวเตอร์แล้ว!')
+    fetchAdminData()
   }
 
   // ส่งออกรายงาน CSV สรุปรายเดือน
@@ -325,12 +341,12 @@ export default function AdminDashboard() {
                           </td>
                           <td className="p-4 text-center">
                             {p.paid_to_tutor ? (
-                              <span className="inline-block bg-emerald-50 text-emerald-600 text-[10px] font-bold px-3 py-1 rounded-full border border-emerald-200">
-                                ✓ โอนให้ติวเตอร์แล้ว
+                              <span className="inline-block bg-emerald-50 text-emerald-600 text-[11px] font-bold px-3 py-1.5 rounded-full border border-emerald-200">
+                                ✓ ดำเนินการเรียบร้อยแล้ว
                               </span>
                             ) : (
                               <button
-                                onClick={() => handleTransferToTutor(p.id)}
+                                onClick={() => handleTransferToTutor(p)}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-xl shadow-sm transition"
                               >
                                 โอนต่อให้ติวเตอร์
