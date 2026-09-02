@@ -23,7 +23,6 @@ function ChatContent() {
   const [sending, setSending] = useState(false)
   const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null)
   
-  // State สลับหน้ารายชื่อคู่สนทนาและกล่องแชทบนมือถือ
   const [showMobileList, setShowMobileList] = useState(true)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -148,7 +147,6 @@ function ChatContent() {
     setChatPartners(partnerArray)
     partnerArray.forEach((p) => fetchProfile(p))
 
-    // ถ้ามีพารามิเตอร์เลือกติวเตอร์มา ให้เปิดแชทบนมือถือทันที
     if (tutorParam) {
       setShowMobileList(false)
     }
@@ -226,7 +224,6 @@ function ChatContent() {
     <main className="min-h-screen bg-slate-100 p-2 sm:p-4 md:p-6 flex flex-col items-center justify-center">
       <div className="max-w-5xl w-full bg-white rounded-2xl md:rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 flex h-[90vh] md:h-[85vh] overflow-hidden">
         
-        {/* Sidebar Responsive */}
         <div className={`w-full md:w-1/3 border-r border-slate-100 bg-slate-50/50 flex flex-col ${!showMobileList ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white">
             <h2 className="font-extrabold text-sm text-slate-800">รายการแชท</h2>
@@ -272,18 +269,27 @@ function ChatContent() {
           </div>
         </div>
 
-        {/* Main Chat Area Responsive */}
         <div className={`flex-1 flex flex-col bg-white ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white flex items-center gap-2">
-            <button
-              onClick={() => setShowMobileList(true)}
-              className="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition"
+          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() => setShowMobileList(true)}
+                className="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition flex-shrink-0"
+              >
+                ← แชท
+              </button>
+              <h1 className="font-bold text-xs md:text-sm text-slate-800 truncate">
+                {activePartner ? `สนทนากับ: ${getDisplayName(activePartner)}` : 'กรุณาเลือกผู้สนทนา'}
+              </h1>
+            </div>
+
+            {/* เพิ่มปุ่มกดกลับหน้าหลักในโหมดแชทมือถือ */}
+            <Link
+              href="/"
+              className="md:hidden bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 flex-shrink-0"
             >
-              ← แชท
-            </button>
-            <h1 className="font-bold text-xs md:text-sm text-slate-800 truncate">
-              {activePartner ? `สนทนากับ: ${getDisplayName(activePartner)}` : 'กรุณาเลือกผู้สนทนา'}
-            </h1>
+              <span>🏠</span> หน้าหลัก
+            </Link>
           </div>
 
           <div className="flex-1 p-3 md:p-4 overflow-y-auto space-y-3 bg-slate-50/30">
@@ -340,7 +346,6 @@ function ChatContent() {
 
       </div>
 
-      {/* Modal ดูรูปสลิปขยายใหญ่ Responsive */}
       {selectedImageModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
           <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 max-w-md w-full shadow-2xl space-y-3 relative">

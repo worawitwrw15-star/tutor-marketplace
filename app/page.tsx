@@ -33,7 +33,6 @@ export default function Home() {
   const [isStudent, setIsStudent] = useState(false)
   const [hasUnread, setHasUnread] = useState(false)
 
-  // State สำหรับ Modal รีวิว
   const [selectedTutorForReview, setSelectedTutorForReview] = useState<Tutor | null>(null)
   const [newRating, setNewRating] = useState(5)
   const [newComment, setNewComment] = useState('')
@@ -170,7 +169,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50/60 text-slate-800 relative">
-      {/* Top Navbar Responsive */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 md:px-6 py-3 shadow-sm">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
           <div className="flex items-center justify-between w-full sm:w-auto gap-3">
@@ -209,18 +207,23 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end overflow-x-auto pb-1 sm:pb-0">
-            {isStudent ? (
+            {/* เพิ่มปุ่มติดต่อแอดมินให้ทั้งนักเรียนและติวเตอร์ */}
+            {(isStudent || isTutor) && (
               <Link 
                 href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
                 className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-1 flex-shrink-0"
               >
-                <span>🎧</span> แอดมิน
+                <span>🎧</span> ติดต่อแอดมิน
               </Link>
-            ) : isTutor ? (
+            )}
+
+            {isTutor && (
               <Link href="/register" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex-shrink-0">
                 โปรไฟล์ติวเตอร์
               </Link>
-            ) : (
+            )}
+
+            {!isStudent && !isTutor && (
               <Link href="/admin" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0">
                 <span>👑</span> แอดมิน
               </Link>
@@ -250,7 +253,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Header Banner Responsive */}
       <section className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-10 pb-4 md:pb-6">
         <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl md:rounded-3xl p-6 md:p-12 text-white shadow-xl shadow-indigo-600/10 text-center relative overflow-hidden">
           <div className="relative z-10 max-w-2xl mx-auto">
@@ -278,7 +280,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Tutor Grid Section Responsive */}
       <section className="max-w-6xl mx-auto px-4 md:px-6 pb-16 pt-2 md:pt-4">
         <div className="flex justify-between items-center mb-4 md:mb-6">
           <h3 className="font-extrabold text-base md:text-lg text-slate-800">
@@ -353,7 +354,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Modal ดูรีวิวและเขียนคอมเมนต์ Responsive */}
       {selectedTutorForReview && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
           <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 max-w-lg w-full shadow-2xl space-y-4 relative max-h-[90vh] overflow-y-auto">
