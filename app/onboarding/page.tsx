@@ -22,14 +22,14 @@ export default function OnboardingPage() {
           </Link>
 
           <Link 
-            href="/" 
+            href="/student-register" 
             className="block w-full p-5 border-2 border-emerald-500 rounded-xl hover:bg-emerald-50 transition text-left group"
           >
             <div className="font-bold text-emerald-600 text-lg group-hover:translate-x-1 transition-transform">
               🎓 ลงทะเบียนเป็นนักเรียน →
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              ค้นหาติวเตอร์ จองเวลาเรียน และเริ่มพูดคุยแชท
+              สร้างโปรไฟล์นักเรียน และเริ่มค้นหาติวเตอร์
             </div>
           </Link>
         </div>
