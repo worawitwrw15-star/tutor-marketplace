@@ -133,10 +133,10 @@ export default function AdminDashboard() {
     setSubmittingPayout(true)
 
     try {
-      // 1. อัปโหลดสลิปเข้า Supabase Storage
+      // 1. อัปโหลดสลิปเข้า Supabase Storage (แก้ไขไม่ให้ชื่อโฟลเดอร์ซ้ำซ้อนกับ bucket name)
       const fileExt = payoutSlipFile.name.split('.').pop()
       const fileName = `payout_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `slips/${fileName}`
+      const filePath = `${fileName}`
 
       const { error: uploadError } = await supabase.storage
         .from('slips')
@@ -170,8 +170,8 @@ export default function AdminDashboard() {
         return
       }
 
-      // 3. ส่งข้อความพร้อมแนบลิงก์รูปสลิปไปยังห้องแชทติวเตอร์
-      const notifyMsg = `💸 [แจ้งโอนเงินค่าสอนเรียบร้อย]\nทางแพลตฟอร์มได้โอนเงินยอดสุทธิ ${Number(transferModalPayment.tutor_amount).toLocaleString()} บาท สำหรับรายการสอนของนักเรียน (${transferModalPayment.student_email}) เรียบร้อยแล้วครับ\n\n📄 ดูหลักฐานสลิป: ${payoutSlipUrl}`
+      // 3. ส่งข้อความแจ้งโอนเงินพร้อมลิงก์ดูหลักฐานสลิปไปยังห้องแชทติวเตอร์
+      const notifyMsg = `💸 [แจ้งโอนเงินค่าสอน] ทางแพลตฟอร์มได้โอนเงินยอดสุทธิ ${Number(transferModalPayment.tutor_amount).toLocaleString()} บาท สำหรับรายการสอนของนักเรียน (${transferModalPayment.student_email}) เข้าบัญชีธนาคารของคุณเรียบร้อยแล้วครับ\n\nเปิดลิงก์ดูหลักฐาน: ${payoutSlipUrl}`
 
       await supabase.from('messages').insert([
         {
