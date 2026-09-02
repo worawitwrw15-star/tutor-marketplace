@@ -4,16 +4,17 @@ import { supabase } from '@/lib/supabaseClient'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-function CheckoutContent() {
+function CheckoutForm() {
   const [tutor, setTutor] = useState<any>(null)
   const [settings, setSettings] = useState<any>(null)
   const [userEmail, setUserEmail] = useState('')
   const [hours, setHours] = useState(1)
   const [bookingDate, setBookingDate] = useState('')
-  const [bookingTime, setBookingTime] = useState('10:00 - 12:00')
+  const [bookingTime, setBookingTime] = useState('09:00 - 11:00')
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [slipPreview, setSlipPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -24,20 +25,37 @@ function CheckoutContent() {
   }, [tutorEmail])
 
   async function fetchCheckoutData() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user?.email) {
-      router.push('/login')
-      return
-    }
-    setUserEmail(session.user.email)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user?.email) {
+        router.push('/login')
+        return
+      }
+      setUserEmail(session.user.email)
 
-    if (tutorEmail) {
-      const { data: tData } = await supabase.from('tutors').select('*').eq('email', tutorEmail).maybeSingle()
-      setTutor(tData)
-    }
+      if (tutorEmail) {
+        const { data: tData, error: tError } = await supabase
+          .from('tutors')
+          .select('*')
+          .eq('email', tutorEmail)
+          .maybeSingle()
 
-    const { data: sData } = await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle()
-    setSettings(sData || { promptpay_number: '0812345678', commission_rate: 15 })
+        if (tError) console.error('Error fetching tutor:', tError)
+        setTutor(tData)
+      }
+
+      const { data: sData } = await supabase
+        .from('platform_settings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle()
+
+      setSettings(sData || { promptpay_number: '0812345678', commission_rate: 15 })
+    } catch (err) {
+      console.error('Error in fetchCheckoutData:', err)
+    } finally {
+      setFetching(false)
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,7 +97,7 @@ function CheckoutContent() {
       }
 
       const totalAmount = Number(tutor.price) * Number(hours)
-      const commissionRate = Number(settings.commission_rate || 15)
+      const commissionRate = Number(settings?.commission_rate || 15)
       const commissionAmount = (totalAmount * commissionRate) / 100
       const tutorAmount = totalAmount - commissionAmount
 
@@ -98,7 +116,7 @@ function CheckoutContent() {
       ])
 
       if (payError) {
-        alert('เกิดข้อผิดพลาด: ' + payError.message)
+        alert('เกิดข้อผิดพลาดในการบันทึกการชำระเงิน: ' + payError.message)
         setLoading(false)
         return
       }
@@ -120,7 +138,24 @@ function CheckoutContent() {
     }
   }
 
-  if (!tutor) return <div className="min-h-screen flex items-center justify-center text-xs text-slate-400">กำลังโหลดข้อมูลการจอง...</div>
+  if (fetching) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">
+        กำลังโหลดข้อมูลการจอง...
+      </div>
+    )
+  }
+
+  if (!tutor) {
+    return (
+      <main className="min-h-screen bg-slate-50 p-4 flex flex-col items-center justify-center text-center space-y-3">
+        <p className="text-xs text-slate-500 font-bold">ไม่พบข้อมูลติวเตอร์ หรือลิงก์ไม่ถูกต้อง</p>
+        <Link href="/" className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl">
+          กลับหน้าแรก
+        </Link>
+      </main>
+    )
+  }
 
   const totalPrice = Number(tutor.price) * Number(hours)
 
@@ -172,7 +207,7 @@ function CheckoutContent() {
           </div>
 
           <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center space-y-1">
-            <span className="text-slate-500 block">ยอดโอนชำระผ่าน PromptPay เบอร์: <strong>{settings.promptpay_number}</strong></span>
+            <span className="text-slate-500 block">ยอดโอนชำระผ่าน PromptPay เบอร์: <strong>{settings?.promptpay_number || '0812345678'}</strong></span>
             <span className="text-2xl font-black text-emerald-600">{totalPrice.toLocaleString()} บาท</span>
           </div>
 
@@ -196,8 +231,8 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs text-slate-400">กำลังโหลด...</div>}>
-      <CheckoutContent />
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">กำลังโหลดหน้าชำระเงิน...</div>}>
+      <CheckoutForm />
     </Suspense>
   )
 }
