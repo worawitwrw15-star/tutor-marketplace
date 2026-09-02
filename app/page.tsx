@@ -28,6 +28,8 @@ export default function Home() {
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [search, setSearch] = useState('')
+  const [priceFilter, setPriceFilter] = useState<'all' | 'low' | 'mid' | 'high'>('all')
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'rating'>('default')
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [isTutor, setIsTutor] = useState(false)
@@ -107,13 +109,15 @@ export default function Home() {
   }
 
   const getTutorRatingInfo = (tutorEmail?: string) => {
-    if (!tutorEmail) return { avg: '0.0', count: 0 }
+    if (!tutorEmail) return { avg: '0.0', count: 0, numericAvg: 0 }
     const tutorReviews = reviews.filter((r) => r.tutor_email === tutorEmail)
-    if (tutorReviews.length === 0) return { avg: '0.0', count: 0 }
+    if (tutorReviews.length === 0) return { avg: '0.0', count: 0, numericAvg: 0 }
     const sum = tutorReviews.reduce((acc, r) => acc + r.rating, 0)
+    const avgNum = sum / tutorReviews.length
     return {
-      avg: (sum / tutorReviews.length).toFixed(1),
-      count: tutorReviews.length
+      avg: avgNum.toFixed(1),
+      count: tutorReviews.length,
+      numericAvg: avgNum
     }
   }
 
@@ -162,11 +166,31 @@ export default function Home() {
     )
   }
 
-  const filteredTutors = tutors.filter((t) =>
-    t.subject.toLowerCase().includes(search.toLowerCase()) ||
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    (t.nickname && t.nickname.toLowerCase().includes(search.toLowerCase()))
-  )
+  // ระบบค้นหาและฟิลเตอร์ขั้นสูง (Advanced Filters & Sorting)
+  const filteredTutors = tutors
+    .filter((t) => {
+      const matchSearch =
+        t.subject.toLowerCase().includes(search.toLowerCase()) ||
+        t.name.toLowerCase().includes(search.toLowerCase()) ||
+        (t.nickname && t.nickname.toLowerCase().includes(search.toLowerCase()))
+
+      if (!matchSearch) return false
+
+      if (priceFilter === 'low') return t.price < 200
+      if (priceFilter === 'mid') return t.price >= 200 && t.price <= 500
+      if (priceFilter === 'high') return t.price > 500
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price-asc') return a.price - b.price
+      if (sortBy === 'price-desc') return b.price - a.price
+      if (sortBy === 'rating') {
+        const ratingA = getTutorRatingInfo(a.email).numericAvg
+        const ratingB = getTutorRatingInfo(b.email).numericAvg
+        return ratingB - ratingA
+      }
+      return 0
+    })
 
   return (
     <main className="min-h-screen bg-slate-50/60 text-slate-800 relative">
@@ -222,12 +246,18 @@ export default function Home() {
             )}
 
             <Link 
+              href="/profile" 
+              className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0"
+            >
+              <span>⚙️</span> ตั้งค่าโปรไฟล์
+            </Link>
+
+            <Link 
               href="/chat" 
               onClick={() => setHasUnread(false)}
               className="relative px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0"
             >
               <span>💬</span> ห้องแชท
-              {/* แสดงจุดสีแดงกระพริบเฉพาะเมื่อมีข้อความใหม่ (hasUnread เป็น true) */}
               {hasUnread && (
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -259,7 +289,7 @@ export default function Home() {
               เชื่อมต่อติวเตอร์คุณภาพ พร้อมระบบชำระเงินความปลอดภัยสูงผ่าน PromptPay
             </p>
 
-            <div className="relative max-w-lg mx-auto">
+            <div className="relative max-w-lg mx-auto mb-4">
               <input
                 type="text"
                 placeholder="ค้นหาตามวิชา, ชื่อติวเตอร์..."
@@ -269,15 +299,39 @@ export default function Home() {
               />
               <span className="absolute left-3.5 md:left-4 top-1/2 -translate-y-1/2 text-slate-400 text-base md:text-lg">🔍</span>
             </div>
+
+            {/* แถบตัวกรองราคา (Price Filters) */}
+            <div className="flex flex-wrap justify-center items-center gap-1.5 md:gap-2">
+              <span className="text-[11px] font-medium text-indigo-100 mr-1">ราคา:</span>
+              <button onClick={() => setPriceFilter('all')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'all' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>ทั้งหมด</button>
+              <button onClick={() => setPriceFilter('low')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'low' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>ต่ำกว่า 200 ฿</button>
+              <button onClick={() => setPriceFilter('mid')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'mid' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>200 - 500 ฿</button>
+              <button onClick={() => setPriceFilter('high')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'high' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>มากกว่า 500 ฿</button>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="max-w-6xl mx-auto px-4 md:px-6 pb-16 pt-2 md:pt-4">
-        <div className="flex justify-between items-center mb-4 md:mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
           <h3 className="font-extrabold text-base md:text-lg text-slate-800">
             ติวเตอร์พร้อมสอน ({filteredTutors.length})
           </h3>
+
+          {/* ตัวเลือกการจัดเรียง (Sorting) */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <span className="text-xs text-slate-400 font-medium">จัดเรียงตาม:</span>
+            <select
+              className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={sortBy}
+              onChange={(e: any) => setSortBy(e.target.value)}
+            >
+              <option value="default">ค่าเริ่มต้น</option>
+              <option value="rating">⭐ คะแนนรีวิวสูงสุด</option>
+              <option value="price-asc">💵 ค่าเรียน: น้อยไปมาก</option>
+              <option value="price-desc">💵 ค่าเรียน: มากไปน้อย</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
