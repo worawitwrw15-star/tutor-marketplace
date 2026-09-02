@@ -121,7 +121,24 @@ export default function Home() {
             </div>
             <div>
               <h1 className="font-extrabold text-slate-800 leading-tight">Tutor Marketplace</h1>
-              <p className="text-[11px] text-slate-400 font-medium">{userEmail}</p>
+              {/* แสดงสถานะบทบาทในระบบต่อจากอีเมล */}
+              <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
+                <span>{userEmail}</span>
+                <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
+                {isTutor ? (
+                  <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/60">
+                    👨‍🏫 ติวเตอร์
+                  </span>
+                ) : isStudent ? (
+                  <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/60">
+                    🎓 นักเรียน
+                  </span>
+                ) : (
+                  <span className="text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-md">
+                    👤 ผู้ใช้ทั่วไป
+                  </span>
+                )}
+              </p>
             </div>
           </div>
 
