@@ -7,6 +7,7 @@ import Link from 'next/link'
 interface Tutor {
   id: string
   name: string
+  nickname?: string
   subject: string
   price: number
   bio: string
@@ -19,15 +20,15 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [isTutor, setIsTutor] = useState(false)
+  const [isStudent, setIsStudent] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    checkUserAndFetchTutors()
+    checkUserAndFetchData()
   }, [])
 
-  async function checkUserAndFetchTutors() {
+  async function checkUserAndFetchData() {
     const { data: { session } } = await supabase.auth.getSession()
-
     if (!session) {
       router.push('/login')
       return
@@ -36,13 +37,13 @@ export default function Home() {
     const email = session.user.email || ''
     setUserEmail(email)
 
-    const { data, error } = await supabase.from('tutors').select('*')
-    if (error) console.error('Error fetching:', error)
-    else {
-      setTutors(data || [])
-      const hasTutorProfile = (data || []).some((t) => t.email === email)
-      setIsTutor(hasTutorProfile)
-    }
+    // ตรวจสอบสถานะบทบาท
+    const { data: tutorData } = await supabase.from('tutors').select('*')
+    const { data: studentData } = await supabase.from('students').select('*').eq('email', email).maybeSingle()
+
+    setTutors(tutorData || [])
+    setIsTutor((tutorData || []).some((t) => t.email === email))
+    setIsStudent(!!studentData)
     
     setLoading(false)
   }
@@ -54,78 +55,108 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">
-        กำลังตรวจสอบสิทธิ์การใช้งาน...
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">
+        กำลังโหลดข้อมูลแพลตฟอร์ม...
       </div>
     )
   }
 
   const filteredTutors = tutors.filter((t) =>
     t.subject.toLowerCase().includes(search.toLowerCase()) ||
-    t.name.toLowerCase().includes(search.toLowerCase())
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
+    (t.nickname && t.nickname.toLowerCase().includes(search.toLowerCase()))
   )
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6 md:p-12">
-      <div className="max-w-4xl mx-auto">
-        {/* แถบเมนูด้านบน */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-indigo-600">แพลตฟอร์ม-นายหน้าติวเตอร์</h1>
-            <p className="text-xs text-gray-400 mt-0.5">ยินดีต้อนรับ: {userEmail}</p>
+    <main className="min-h-screen bg-slate-50/80 text-slate-800">
+      {/* Top Navbar */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-indigo-600/30">
+              T
+            </div>
+            <div>
+              <h1 className="font-extrabold text-base text-slate-800 leading-tight">Tutor Marketplace</h1>
+              <p className="text-[11px] text-slate-400 font-medium">{userEmail}</p>
+            </div>
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex items-center gap-2">
+            {/* ซ่อนปุ่มสมัครติวเตอร์ถ้านักเรียนล็อกอินอยู่ */}
             {isTutor ? (
-              <Link href="/register" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+              <Link href="/register" className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/20 transition">
                 จัดการโปรไฟล์ติวเตอร์
               </Link>
-            ) : (
-              <Link href="/register" className="px-4 py-2 text-sm border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition">
+            ) : !isStudent ? (
+              <Link href="/register" className="px-4 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition">
                 สมัครเป็นติวเตอร์
               </Link>
-            )}
+            ) : null}
 
-            <Link href="/chat" className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-              ห้องแชท
+            <Link href="/chat" className="px-4 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5">
+              <span>💬</span> ห้องแชท
             </Link>
+
             <button 
               onClick={handleLogout} 
-              className="px-4 py-2 text-sm border border-red-500 text-red-500 rounded-lg hover:bg-red-50 transition"
+              className="px-3.5 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-xl transition"
             >
               ออกจากระบบ
             </button>
           </div>
         </div>
+      </header>
 
-        <p className="text-center text-gray-500 mb-8">ค้นหาติวเตอร์คุณภาพสำหรับคุณ</p>
+      {/* Hero Search Section */}
+      <section className="max-w-4xl mx-auto px-6 pt-12 pb-8 text-center">
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight mb-2">
+          ค้นหาติวเตอร์ส่วนตัวที่เหมาะกับคุณ
+        </h2>
+        <p className="text-xs text-slate-400 mb-8 max-w-md mx-auto">
+          เชื่อมต่อผู้เรียนและติวเตอร์คุณภาพ พร้อมระบบพูดคุยและนัดหมายในที่เดียว
+        </p>
 
-        {/* แถบค้นหา */}
-        <div className="flex gap-2 mb-8">
+        <div className="relative max-w-xl mx-auto">
           <input
             type="text"
-            placeholder="ค้นตามวิชา หรือ ชื่อติวเตอร์..."
-            className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
+            placeholder="ค้นหาตามวิชา, ชื่อติวเตอร์ หรือชื่อเล่น..."
+            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200/80 rounded-2xl shadow-lg shadow-slate-200/50 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition placeholder:text-slate-300"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">🔍</span>
         </div>
+      </section>
 
-        {/* การ์ดติวเตอร์ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Tutor Grid */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTutors.map((tutor) => (
-            <div key={tutor.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div key={tutor.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col justify-between hover:-translate-y-1 transition-all duration-200">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">{tutor.name}</h2>
-                <span className="inline-block bg-indigo-50 text-indigo-600 text-xs px-2.5 py-1 rounded-full font-medium mt-1 mb-3">
-                  วิชา: {tutor.subject}
-                </span>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">{tutor.bio}</p>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800">{tutor.name}</h3>
+                    {tutor.nickname && (
+                      <span className="text-xs font-medium text-slate-400">({tutor.nickname})</span>
+                    )}
+                  </div>
+                  <span className="bg-indigo-50 text-indigo-600 text-[11px] font-bold px-3 py-1 rounded-full">
+                    {tutor.subject}
+                  </span>
+                </div>
+                <p className="text-slate-500 text-xs leading-relaxed mb-6 line-clamp-3">{tutor.bio}</p>
               </div>
-              <div className="flex justify-between items-center border-t pt-4 mt-2">
-                <span className="text-lg font-bold text-green-600">{tutor.price} บาท/ชม.</span>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 block">ค่าสอน</span>
+                  <span className="text-base font-black text-emerald-600">{tutor.price} <span className="text-xs font-normal text-slate-400">บาท/ชม.</span></span>
+                </div>
                 <Link 
                   href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
-                  className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-600 transition"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-md shadow-slate-900/10"
                 >
                   จองเรียน / แชท
                 </Link>
@@ -133,7 +164,7 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
     </main>
   )
 }
