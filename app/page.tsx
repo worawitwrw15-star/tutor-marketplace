@@ -23,16 +23,13 @@ export default function Home() {
   }, [])
 
   async function checkUserAndFetchTutors() {
-    // 1. ตรวจสอบสถานะการเข้าสู่ระบบ
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
-      // ถ้ายังไม่ได้เข้าสู่ระบบ ให้ส่งไปหน้า /login ทันที
       router.push('/login')
       return
     }
 
-    // 2. ถ้าเข้าสู่ระบบแล้ว ให้ดึงข้อมูลติวเตอร์
     const { data, error } = await supabase.from('tutors').select('*')
     if (error) console.error('Error fetching:', error)
     else setTutors(data || [])
@@ -67,9 +64,6 @@ export default function Home() {
           <div className="flex gap-2">
             <Link href="/chat" className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
               ห้องแชท
-            </Link>
-            <Link href="/onboarding" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-              เลือกบทบาท
             </Link>
             <button 
               onClick={handleLogout} 
