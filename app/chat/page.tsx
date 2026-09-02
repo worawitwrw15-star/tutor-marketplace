@@ -12,19 +12,16 @@ interface Message {
   created_at: string
 }
 
-interface UserProfile {
-  email: string
-  nickname: string
-}
-
 function ChatContent() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [userEmail, setUserEmail] = useState<string>('')
   const [activePartner, setActivePartner] = useState<string>('')
   const [chatPartners, setChatPartners] = useState<string[]>([])
+  const [unreadPartners, setUnreadPartners] = useState<Set<string>>(new Set())
   const [profiles, setProfiles] = useState<Record<string, string>>({})
   const [sending, setSending] = useState(false)
+  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const searchParams = useSearchParams()
@@ -37,6 +34,17 @@ function ChatContent() {
   useEffect(() => {
     initChat()
   }, [])
+
+  // เมื่อเปลี่ยนคู่สนทนา ให้ลบจุดแดงแจ้งเตือนของคนนั้นออก
+  useEffect(() => {
+    if (activePartner) {
+      setUnreadPartners((prev) => {
+        const next = new Set(prev)
+        next.delete(activePartner)
+        return next
+      })
+    }
+  }, [activePartner])
 
   useEffect(() => {
     if (!userEmail) return
@@ -54,6 +62,11 @@ function ChatContent() {
           if (partner) {
             setChatPartners((prev) => Array.from(new Set([...prev, partner])))
             fetchProfile(partner)
+
+            // หากข้อความส่งมาหาเรา และเราไม่ได้กำลังเปิดแชทกับคนนั้นอยู่ ให้ติดจุดสีแดง
+            if (newMsg.receiver === userEmail && partner !== activePartner) {
+              setUnreadPartners((prev) => new Set(prev).add(partner))
+            }
           }
         }
       })
@@ -62,7 +75,7 @@ function ChatContent() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userEmail])
+  }, [userEmail, activePartner])
 
   useEffect(() => {
     scrollToBottom()
@@ -70,7 +83,10 @@ function ChatContent() {
 
   async function fetchProfile(email: string) {
     if (profiles[email]) return
-    // ค้นหาชื่อเล่นจากตารางติวเตอร์และนักเรียน
+    if (email === 'system_admin@platform.com') {
+      setProfiles((prev) => ({ ...prev, [email]: '👑 แอดมินดูแลระบบ' }))
+      return
+    }
     const { data: tutor } = await supabase.from('tutors').select('nickname').eq('email', email).maybeSingle()
     if (tutor?.nickname) {
       setProfiles((prev) => ({ ...prev, [email]: tutor.nickname }))
@@ -99,17 +115,34 @@ function ChatContent() {
     setMessages(allMsgs)
 
     const partners = new Set<string>()
+    const unreads = new Set<string>()
+
+    // ตรวจหาแชทล่าสุดของแต่ละคู่สนทนา หากข้อความล่าสุดส่งมาหาเรา ให้แสดงจุดสีแดง
+    const lastMsgPerPartner: Record<string, Message> = {}
     allMsgs.forEach((m) => {
-      if (m.sender === myEmail && m.receiver) partners.add(m.receiver)
-      if (m.receiver === myEmail && m.sender) partners.add(m.sender)
+      const partner = m.sender === myEmail ? m.receiver : m.sender
+      if (partner) {
+        partners.add(partner)
+        lastMsgPerPartner[partner] = m
+      }
     })
 
+    let initialActive = ''
     if (tutorParam && tutorParam !== myEmail) {
       partners.add(tutorParam)
-      setActivePartner(tutorParam)
+      initialActive = tutorParam
     } else if (partners.size > 0) {
-      setActivePartner(Array.from(partners)[0])
+      initialActive = Array.from(partners)[0]
     }
+
+    Object.entries(lastMsgPerPartner).forEach(([partner, lastMsg]) => {
+      if (lastMsg.receiver === myEmail && partner !== initialActive) {
+        unreads.add(partner)
+      }
+    })
+
+    setActivePartner(initialActive)
+    setUnreadPartners(unreads)
 
     const partnerArray = Array.from(partners)
     setChatPartners(partnerArray)
@@ -149,7 +182,40 @@ function ChatContent() {
 
   const getDisplayName = (email: string) => {
     const nick = profiles[email]
+    if (email === 'system_admin@platform.com') return '👑 แอดมินดูแลระบบ'
     return nick ? `${nick} (${email})` : email
+  }
+
+  // ฟังก์ชันเรนเดอร์ลิงก์รูปภาพให้เป็นรูปแสดงในกล่องแชท
+  const renderMessageContent = (content: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const parts = content.split(urlRegex)
+
+    return parts.map((part, index) => {
+      const isImageUrl = part.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i) || part.includes('/storage/v1/object/public/slips/')
+
+      if (isImageUrl) {
+        const cleanedUrl = part.replace('/slips/slips/', '/slips/')
+        return (
+          <div key={index} className="my-2">
+            <img
+              src={cleanedUrl}
+              alt="หลักฐาน/สลิป"
+              className="max-w-[220px] max-h-56 rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition shadow-sm"
+              onClick={() => setSelectedImageModal(cleanedUrl)}
+            />
+            <span className="text-[9px] text-slate-300 block mt-1">🔍 คลิกดูรูปใหญ่</span>
+          </div>
+        )
+      } else if (part.match(/^https?:\/\//)) {
+        return (
+          <a key={index} href={part} target="_blank" rel="noreferrer" className="underline font-semibold break-all text-indigo-200 hover:text-white">
+            {part}
+          </a>
+        )
+      }
+      return <span key={index} className="whitespace-pre-wrap">{part}</span>
+    })
   }
 
   return (
@@ -166,19 +232,31 @@ function ChatContent() {
             {chatPartners.length === 0 ? (
               <p className="text-center text-xs text-slate-400 p-4">ยังไม่มีรายการแชท</p>
             ) : (
-              chatPartners.map((partner) => (
-                <button
-                  key={partner}
-                  onClick={() => setActivePartner(partner)}
-                  className={`w-full p-3 text-left rounded-xl text-xs font-semibold transition truncate block ${
-                    activePartner === partner
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  💬 {getDisplayName(partner)}
-                </button>
-              ))
+              chatPartners.map((partner) => {
+                const isActive = activePartner === partner
+                const hasUnread = unreadPartners.has(partner)
+                return (
+                  <button
+                    key={partner}
+                    onClick={() => setActivePartner(partner)}
+                    className={`w-full p-3 text-left rounded-xl text-xs font-semibold transition truncate flex items-center justify-between relative ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="truncate pr-2">💬 {getDisplayName(partner)}</span>
+
+                    {/* จุดสีแดงแจ้งเตือนข้อความใหม่ */}
+                    {hasUnread && !isActive && (
+                      <span className="flex h-2.5 w-2.5 relative flex-shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-white"></span>
+                      </span>
+                    )}
+                  </button>
+                )
+              })
             )}
           </div>
           <div className="p-3 border-t border-slate-100 bg-white">
@@ -220,7 +298,7 @@ function ChatContent() {
                           : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
                       }`}
                     >
-                      {msg.content}
+                      {renderMessageContent(msg.content)}
                     </div>
                   </div>
                 )
@@ -249,6 +327,34 @@ function ChatContent() {
         </div>
 
       </div>
+
+      {/* Modal ดูรูปสลิปขยายใหญ่ */}
+      {selectedImageModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 relative">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-xs text-slate-800">📄 รูปภาพหลักฐาน/สลิป</h3>
+              <button
+                onClick={() => setSelectedImageModal(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-xs transition"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto text-center bg-slate-50 p-2 rounded-2xl border border-slate-100">
+              <img src={selectedImageModal} alt="Expanded preview" className="w-full h-auto rounded-xl shadow-sm mx-auto" />
+            </div>
+            <div className="text-right">
+              <button
+                onClick={() => setSelectedImageModal(null)}
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
