@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 
@@ -38,6 +38,14 @@ interface Payment {
   created_at: string
 }
 
+interface Message {
+  id: string
+  sender: string
+  receiver: string
+  content: string
+  created_at: string
+}
+
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [usernameInput, setUsernameInput] = useState('')
@@ -46,7 +54,7 @@ export default function AdminDashboard() {
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
-  const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students' | 'settings'>('payments')
+  const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students' | 'chat' | 'settings'>('payments')
   const [loading, setLoading] = useState(false)
 
   const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null)
@@ -60,6 +68,15 @@ export default function AdminDashboard() {
   const [commissionRate, setCommissionRate] = useState(15)
   const [savingSettings, setSavingSettings] = useState(false)
 
+  // State สำหรับระบบแชทในแอดมิน
+  const ADMIN_EMAIL = 'system_admin@platform.com'
+  const [chatMessages, setChatMessages] = useState<Message[]>([])
+  const [chatPartners, setChatPartners] = useState<string[]>([])
+  const [activeChatPartner, setActiveChatPartner] = useState<string>('')
+  const [chatInput, setChatInput] = useState('')
+  const [sendingChat, setSendingChat] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const sessionAdmin = sessionStorage.getItem('is_admin_logged_in')
     if (sessionAdmin === 'true') {
@@ -67,6 +84,36 @@ export default function AdminDashboard() {
       fetchAdminData()
     }
   }, [])
+
+  // Realtime Subscription สำหรับแชทแอดมิน
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const channel = supabase
+      .channel('admin_chat_room')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const newMsg = payload.new as Message
+        if (newMsg.sender === ADMIN_EMAIL || newMsg.receiver === ADMIN_EMAIL) {
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev
+            return [...prev, newMsg]
+          })
+          const partner = newMsg.sender === ADMIN_EMAIL ? newMsg.receiver : newMsg.sender
+          if (partner) {
+            setChatPartners((prev) => Array.from(new Set([...prev, partner])))
+          }
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages, activeChatPartner])
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,6 +138,28 @@ export default function AdminDashboard() {
     const { data: studentData } = await supabase.from('students').select('*')
     const { data: settingsData } = await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle()
 
+    // ดึงข้อความแชททั้งหมดของแอดมิน
+    const { data: msgData } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`sender.eq.${ADMIN_EMAIL},receiver.eq.${ADMIN_EMAIL}`)
+      .order('created_at', { ascending: true })
+
+    const allMsgs: Message[] = msgData || []
+    setChatMessages(allMsgs)
+
+    const partners = new Set<string>()
+    allMsgs.forEach((m) => {
+      if (m.sender === ADMIN_EMAIL && m.receiver) partners.add(m.receiver)
+      if (m.receiver === ADMIN_EMAIL && m.sender) partners.add(m.sender)
+    })
+
+    const partnerArray = Array.from(partners)
+    setChatPartners(partnerArray)
+    if (partnerArray.length > 0 && !activeChatPartner) {
+      setActiveChatPartner(partnerArray[0])
+    }
+
     setPayments(payData || [])
     setTutors(tutorData || [])
     setStudents(studentData || [])
@@ -99,6 +168,31 @@ export default function AdminDashboard() {
       setCommissionRate(settingsData.commission_rate || 15)
     }
     setLoading(false)
+  }
+
+  const sendAdminMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatInput.trim() || sendingChat || !activeChatPartner) return
+
+    setSendingChat(true)
+    const textToSend = chatInput
+    setChatInput('')
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert([{ sender: ADMIN_EMAIL, receiver: activeChatPartner, content: textToSend }])
+      .select()
+
+    if (error) {
+      alert('ส่งข้อความไม่สำเร็จ: ' + error.message)
+      setChatInput(textToSend)
+    } else if (data && data.length > 0) {
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === data[0].id)) return prev
+        return [...prev, data[0] as Message]
+      })
+    }
+    setSendingChat(false)
   }
 
   const copyToClipboard = (text: string) => {
@@ -163,7 +257,7 @@ export default function AdminDashboard() {
 
       await supabase.from('messages').insert([
         {
-          sender: 'system_admin@platform.com',
+          sender: ADMIN_EMAIL,
           receiver: transferModalPayment.tutor_email,
           content: notifyMsg
         }
@@ -264,6 +358,12 @@ export default function AdminDashboard() {
   const totalCommission = payments.reduce((sum, p) => sum + Number(p.commission_amount || 0), 0)
   const pendingPayouts = payments.filter((p) => !p.paid_to_tutor)
 
+  const filteredChatMessages = chatMessages.filter(
+    (m) =>
+      (m.sender === ADMIN_EMAIL && m.receiver === activeChatPartner) ||
+      (m.sender === activeChatPartner && m.receiver === ADMIN_EMAIL)
+  )
+
   return (
     <main className="min-h-screen bg-slate-100/70 text-slate-800 relative pb-10">
       <header className="bg-slate-900 text-white px-4 md:px-6 py-4 shadow-lg sticky top-0 z-30">
@@ -316,6 +416,15 @@ export default function AdminDashboard() {
           </button>
 
           <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              activeTab === 'chat' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
+            }`}
+          >
+            💬 แชทช่วยเหลือ ({chatPartners.length})
+          </button>
+
+          <button
             onClick={() => setActiveTab('tutors')}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
               activeTab === 'tutors' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
@@ -346,7 +455,6 @@ export default function AdminDashboard() {
         {/* Tab 1: Payments */}
         {activeTab === 'payments' && (
           <div className="space-y-3">
-            {/* Mobile View: Data Cards */}
             <div className="block md:hidden space-y-3">
               {payments.map((p) => {
                 const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
@@ -410,7 +518,6 @@ export default function AdminDashboard() {
               })}
             </div>
 
-            {/* Desktop View: Table */}
             <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
@@ -465,6 +572,97 @@ export default function AdminDashboard() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Chat: ระบบแชทสำหรับแอดมิน */}
+        {activeTab === 'chat' && (
+          <div className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row h-[600px]">
+            {/* Sidebar คู่สนทนา */}
+            <div className="w-full md:w-1/3 border-r border-slate-100 bg-slate-50/50 flex flex-col">
+              <div className="p-3.5 border-b border-slate-100 bg-white">
+                <h3 className="font-extrabold text-xs text-slate-800">รายการผู้ติดต่อเข้ามา</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {chatPartners.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 p-4">ยังไม่มีใครทักแชทเข้ามา</p>
+                ) : (
+                  chatPartners.map((partner) => (
+                    <button
+                      key={partner}
+                      onClick={() => setActiveChatPartner(partner)}
+                      className={`w-full p-2.5 text-left rounded-xl text-xs font-semibold transition truncate block ${
+                        activeChatPartner === partner
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      💬 {partner}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* กล่องข้อความแชท */}
+            <div className="flex-1 flex flex-col bg-white">
+              <div className="p-3.5 border-b border-slate-100 bg-white">
+                <h4 className="font-bold text-xs text-slate-800 truncate">
+                  {activeChatPartner ? `สนทนากับ: ${activeChatPartner}` : 'กรุณาเลือกคู่สนทนา'}
+                </h4>
+              </div>
+
+              <div className="flex-1 p-3 md:p-4 overflow-y-auto space-y-3 bg-slate-50/30">
+                {!activeChatPartner ? (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                    เลือกคู่สนทนาทางซ้ายมือเพื่อตอบแชท
+                  </div>
+                ) : filteredChatMessages.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                    ยังไม่มีข้อความ
+                  </div>
+                ) : (
+                  filteredChatMessages.map((msg) => {
+                    const isMe = msg.sender === ADMIN_EMAIL
+                    return (
+                      <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                        <span className="text-[9px] text-slate-400 mb-0.5 px-1">
+                          {isMe ? '👑 แอดมิน' : msg.sender}
+                        </span>
+                        <div
+                          className={`p-2.5 rounded-2xl text-xs shadow-sm max-w-xs leading-relaxed ${
+                            isMe
+                              ? 'bg-indigo-600 text-white rounded-tr-none'
+                              : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <form onSubmit={sendAdminMessage} className="p-3 border-t border-slate-100 bg-white flex gap-2">
+                <input
+                  type="text"
+                  disabled={!activeChatPartner}
+                  placeholder={activeChatPartner ? 'พิมพ์ข้อความตอบกลับ...' : 'เลือกผู้ติดต่อก่อน'}
+                  className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  disabled={sendingChat || !activeChatPartner}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-md transition disabled:bg-slate-300"
+                >
+                  {sendingChat ? 'ส่ง...' : 'ส่ง'}
+                </button>
+              </form>
             </div>
           </div>
         )}
