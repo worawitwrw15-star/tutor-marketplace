@@ -33,6 +33,7 @@ interface Payment {
   tutor_amount: number
   status: string
   paid_to_tutor: boolean
+  slip_url?: string
   created_at: string
 }
 
@@ -48,6 +49,9 @@ export default function AdminDashboard() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students' | 'settings'>('payments')
   const [loading, setLoading] = useState(false)
+
+  // State สำหรับ Modal แสดงรูปสลิป
+  const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null)
 
   // System Settings State
   const [promptPayNumber, setPromptPayNumber] = useState('0812345678')
@@ -150,11 +154,11 @@ export default function AdminDashboard() {
   const exportMonthlyCSV = () => {
     if (payments.length === 0) return alert('ไม่มีข้อมูลรายการโอนเงิน')
 
-    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์\n"
+    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์,ลิงก์สลิป\n"
     payments.forEach((p) => {
       const date = new Date(p.created_at).toLocaleString('th-TH')
       const status = p.paid_to_tutor ? "โอนให้ติวเตอร์แล้ว" : "รอดำเนินการ"
-      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${p.commission_amount},${p.tutor_amount},"${status}"\n`
+      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${p.commission_amount},${p.tutor_amount},"${status}","${p.slip_url || '-'}"\n`
     })
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -216,7 +220,7 @@ export default function AdminDashboard() {
   const pendingPayouts = payments.filter((p) => !p.paid_to_tutor)
 
   return (
-    <main className="min-h-screen bg-slate-100/70 text-slate-800">
+    <main className="min-h-screen bg-slate-100/70 text-slate-800 relative">
       <header className="bg-slate-900 text-white px-6 py-5 shadow-lg">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div>
@@ -309,6 +313,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th className="p-4">วันที่/เวลา</th>
                       <th className="p-4">นักเรียน (ผู้โอน)</th>
+                      <th className="p-4">หลักฐานสลิป</th>
                       <th className="p-4">ติวเตอร์ (ผู้รับ)</th>
                       <th className="p-4">ยอดรวม</th>
                       <th className="p-4">ค่าคอมฯ นายหน้า</th>
@@ -324,6 +329,18 @@ export default function AdminDashboard() {
                         <tr key={p.id} className="hover:bg-slate-50/50 transition">
                           <td className="p-4 text-slate-400">{new Date(p.created_at).toLocaleString('th-TH')}</td>
                           <td className="p-4 font-semibold text-slate-800">{p.student_email}</td>
+                          <td className="p-4">
+                            {p.slip_url ? (
+                              <button
+                                onClick={() => setSelectedSlipUrl(p.slip_url || null)}
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold px-3 py-1.5 rounded-xl border border-indigo-200 transition flex items-center gap-1 text-[11px]"
+                              >
+                                <span>🧾</span> ดูสลิป
+                              </button>
+                            ) : (
+                              <span className="text-slate-300 italic text-[11px]">ไม่มีสลิป</span>
+                            )}
+                          </td>
                           <td className="p-4 font-semibold text-slate-800">{p.tutor_email}</td>
                           <td className="p-4 font-bold text-slate-800">{Number(p.amount).toLocaleString()} ฿</td>
                           <td className="p-4 font-bold text-emerald-600">+{Number(p.commission_amount).toLocaleString()} ฿</td>
@@ -470,6 +487,50 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {/* Modal ป๊อปอัปดูรูปสลิปการโอนเงิน */}
+      {selectedSlipUrl && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative animate-in fade-in zoom-in duration-150">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                <span>🧾</span> หลักฐานการโอนเงิน (สลิป)
+              </h3>
+              <button
+                onClick={() => setSelectedSlipUrl(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-2 rounded-2xl border border-slate-100 text-center max-h-[70vh] overflow-y-auto">
+              <img
+                src={selectedSlipUrl}
+                alt="Slip full view"
+                className="w-full h-auto rounded-xl shadow-sm border border-slate-200 mx-auto"
+              />
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <a
+                href={selectedSlipUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-indigo-600 font-bold hover:underline"
+              >
+                🔗 เปิดรูปในหน้าต่างใหม่
+              </a>
+              <button
+                onClick={() => setSelectedSlipUrl(null)}
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
