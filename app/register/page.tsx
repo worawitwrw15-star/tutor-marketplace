@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
@@ -8,31 +8,105 @@ export default function RegisterTutorPage() {
   const [subject, setSubject] = useState('')
   const [price, setPrice] = useState('')
   const [bio, setBio] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    checkAndFetchProfile()
+  }, [])
+
+  async function checkAndFetchProfile() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user?.email) {
+      router.push('/login')
+      return
+    }
+
+    const email = session.user.email
+    setUserEmail(email)
+
+    // ตรวจสอบว่ามีโปรไฟล์ติวเตอร์เดิมอยู่แล้วหรือไม่
+    const { data, error } = await supabase
+      .from('tutors')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Error fetching profile:', error)
+    } else if (data) {
+      // มีข้อมูลเดิม -> เปลี่ยนเข้าสู่โหมดแก้ไขข้อมูล
+      setName(data.name || '')
+      setSubject(data.subject || '')
+      setPrice(data.price ? String(data.price) : '')
+      setBio(data.bio || '')
+      setIsEditMode(true)
+    }
+
+    setLoading(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    setSubmitting(true)
 
-    const { error } = await supabase.from('tutors').insert([
-      { name, subject, price: Number(price), bio }
-    ])
+    if (isEditMode) {
+      // อัปเดตข้อมูลเดิม
+      const { error } = await supabase
+        .from('tutors')
+        .update({
+          name,
+          subject,
+          price: Number(price),
+          bio
+        })
+        .eq('email', userEmail)
 
-    if (error) {
-      alert('เกิดข้อผิดพลาด: ' + error.message)
+      if (error) {
+        alert('เกิดข้อผิดพลาดในการแก้ไข: ' + error.message)
+      } else {
+        alert('อัปเดตข้อมูลโปรไฟล์เรียบร้อยแล้ว!')
+        router.push('/')
+      }
     } else {
-      alert('ลงทะเบียนเป็นติวเตอร์เรียบร้อยแล้ว!')
-      router.push('/')
+      // สร้างโปรไฟล์ใหม่
+      const { error } = await supabase
+        .from('tutors')
+        .insert([
+          { name, subject, price: Number(price), bio, email: userEmail }
+        ])
+
+      if (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message)
+      } else {
+        alert('ลงทะเบียนเป็นติวเตอร์เรียบร้อยแล้ว!')
+        router.push('/')
+      }
     }
-    setLoading(false)
+
+    setSubmitting(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">
+        กำลังโหลดข้อมูล...
+      </div>
+    )
   }
 
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md w-full">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">ลงทะเบียนเป็นติวเตอร์</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">กรอกข้อมูลโปรไฟล์สอนของคุณเพื่อเริ่มรับงาน</p>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+          {isEditMode ? 'แก้ไขข้อมูลติวเตอร์' : 'ลงทะเบียนเป็นติวเตอร์'}
+        </h1>
+        <p className="text-sm text-gray-500 mb-6 text-center">
+          บัญชี: {userEmail}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -81,10 +155,10 @@ export default function RegisterTutorPage() {
 
           <button 
             type="submit" 
-            disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition"
+            disabled={submitting}
+            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:bg-gray-400"
           >
-            {loading ? 'กำลังบันทึก...' : 'บันทึกข้อมูลติวเตอร์'}
+            {submitting ? 'กำลังบันทึก...' : isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูลติวเตอร์'}
           </button>
         </form>
       </div>

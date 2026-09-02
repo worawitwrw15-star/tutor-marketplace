@@ -10,12 +10,14 @@ interface Tutor {
   subject: string
   price: number
   bio: string
+  email?: string
 }
 
 export default function Home() {
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [userEmail, setUserEmail] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -29,6 +31,8 @@ export default function Home() {
       router.push('/login')
       return
     }
+
+    setUserEmail(session.user.email || '')
 
     const { data, error } = await supabase.from('tutors').select('*')
     if (error) console.error('Error fetching:', error)
@@ -60,8 +64,14 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         {/* แถบเมนูด้านบน */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-indigo-600">แพลตฟอร์ม-นายหน้าติวเตอร์</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-indigo-600">แพลตฟอร์ม-นายหน้าติวเตอร์</h1>
+            <p className="text-xs text-gray-400 mt-0.5">ยินดีต้อนรับ: {userEmail}</p>
+          </div>
           <div className="flex gap-2">
+            <Link href="/register" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+              แก้ไข/ตั้งค่าโปรไฟล์ติวเตอร์
+            </Link>
             <Link href="/chat" className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
               ห้องแชท
             </Link>
