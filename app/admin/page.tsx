@@ -220,10 +220,10 @@ export default function AdminDashboard() {
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <form onSubmit={handleAdminLogin} className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-sm w-full space-y-4 md:space-y-5">
+        <form onSubmit={handleAdminLogin} className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-sm w-full space-y-4">
           <div className="text-center">
-            <span className="text-3xl md:text-4xl">👑</span>
-            <h1 className="text-lg md:text-xl font-extrabold text-slate-800 mt-2">เข้าสู่ระบบแอดมิน</h1>
+            <span className="text-3xl">👑</span>
+            <h1 className="text-lg font-extrabold text-slate-800 mt-2">เข้าสู่ระบบแอดมิน</h1>
             <p className="text-xs text-slate-400">เข้าสู่แผงควบคุมเจ้าของแพลตฟอร์ม</p>
           </div>
 
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
             <label className="block text-xs font-bold text-slate-600 mb-1">Username</label>
             <input
               type="text" required
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-base md:text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)}
             />
           </div>
@@ -240,14 +240,14 @@ export default function AdminDashboard() {
             <label className="block text-xs font-bold text-slate-600 mb-1">Password</label>
             <input
               type="password" required
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-base md:text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)}
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/30 transition"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-lg transition"
           >
             เข้าสู่ระบบ
           </button>
@@ -265,188 +265,251 @@ export default function AdminDashboard() {
   const pendingPayouts = payments.filter((p) => !p.paid_to_tutor)
 
   return (
-    <main className="min-h-screen bg-slate-100/70 text-slate-800 relative">
-      {/* Header Responsive */}
-      <header className="bg-slate-900 text-white px-4 md:px-6 py-4 md:py-5 shadow-lg">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+    <main className="min-h-screen bg-slate-100/70 text-slate-800 relative pb-10">
+      <header className="bg-slate-900 text-white px-4 md:px-6 py-4 shadow-lg sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto flex justify-between items-center gap-2">
           <div>
-            <h1 className="font-black text-base md:text-lg flex items-center gap-2">
-              <span>👑</span> แผงควบคุมเจ้าของแพลตฟอร์ม
+            <h1 className="font-black text-sm md:text-lg flex items-center gap-1.5">
+              <span>👑</span> แผงควบคุมแอดมิน
             </h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">จัดการธุรกรรม ติวเตอร์ และนักเรียนในระบบ</p>
+            <p className="text-[10px] text-slate-400">ระบบจัดการธุรกรรมและผู้ใช้</p>
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <button onClick={exportMonthlyCSV} className="flex-1 md:flex-none text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 md:px-4 py-2 rounded-xl transition flex items-center justify-center gap-1 shadow-md">
-              <span>📥</span> สรุป CSV
+          <div className="flex gap-1.5">
+            <button onClick={exportMonthlyCSV} className="text-xs font-bold bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+              📥 <span className="hidden sm:inline">สรุป CSV</span>
             </button>
-            <button onClick={handleAdminLogout} className="flex-1 md:flex-none text-xs font-bold bg-rose-600/80 hover:bg-rose-600 text-white px-3 md:px-3.5 py-2 rounded-xl transition">
-              ออกจากระบบ
+            <button onClick={handleAdminLogout} className="text-xs font-bold bg-rose-600 text-white px-2.5 py-1.5 rounded-lg">
+              ออก
             </button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        {/* Summary Cards Responsive */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-6 md:mb-8">
-          <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80">
-            <span className="text-xs text-slate-400 font-medium block mb-1">💰 ยอดเงินเข้าหมุนเวียนทั้งหมด</span>
-            <span className="text-xl md:text-2xl font-black text-slate-800">{totalRevenue.toLocaleString()} <span className="text-xs text-slate-400 font-normal">บาท</span></span>
+      <div className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-5 mb-5">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium block">💰 เงินหมุนเวียนทั้งหมด</span>
+            <span className="text-lg md:text-2xl font-black text-slate-800">{totalRevenue.toLocaleString()} <span className="text-xs font-normal text-slate-400">บาท</span></span>
           </div>
 
-          <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80">
-            <span className="text-xs text-slate-400 font-medium block mb-1">✨ รายได้ค่าคอมมิชชันนายหน้า ({commissionRate}%)</span>
-            <span className="text-xl md:text-2xl font-black text-emerald-600">{totalCommission.toLocaleString()} <span className="text-xs text-slate-400 font-normal">บาท</span></span>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium block">✨ ค่าคอมมิชชัน ({commissionRate}%)</span>
+            <span className="text-lg md:text-2xl font-black text-emerald-600">{totalCommission.toLocaleString()} <span className="text-xs font-normal text-slate-400">บาท</span></span>
           </div>
 
-          <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80">
-            <span className="text-xs text-slate-400 font-medium block mb-1">🔔 ยอดรอโอนต่อให้ติวเตอร์</span>
-            <span className="text-xl md:text-2xl font-black text-rose-500">{pendingPayouts.length} <span className="text-xs text-slate-400 font-normal">รายการ</span></span>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium block">🔔 รอโอนต่อติวเตอร์</span>
+            <span className="text-lg md:text-2xl font-black text-rose-500">{pendingPayouts.length} <span className="text-xs font-normal text-slate-400">รายการ</span></span>
           </div>
         </div>
 
-        {/* Tab Selection Responsive */}
-        <div className="flex gap-1.5 md:gap-2 mb-6 border-b border-slate-200/80 pb-3 overflow-x-auto">
+        {/* Tab Selection */}
+        <div className="flex gap-1 mb-4 border-b border-slate-200 pb-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('payments')}
-            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
-              activeTab === 'payments' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              activeTab === 'payments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            <span>💳</span> รายการโอน ({pendingPayouts.length > 0 && <span className="bg-rose-500 text-white px-1.5 py-0.5 rounded-full text-[9px]">{pendingPayouts.length}</span>})
+            💳 รายการโอน ({payments.length})
           </button>
 
           <button
             onClick={() => setActiveTab('tutors')}
-            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
-              activeTab === 'tutors' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              activeTab === 'tutors' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            <span>👨‍🏫</span> ติวเตอร์ ({tutors.length})
+            👨‍🏫 ติวเตอร์ ({tutors.length})
           </button>
 
           <button
             onClick={() => setActiveTab('students')}
-            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
-              activeTab === 'students' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              activeTab === 'students' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            <span>🎓</span> นักเรียน ({students.length})
+            🎓 นักเรียน ({students.length})
           </button>
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
-              activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              activeTab === 'settings' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            <span>⚙️</span> ตั้งค่าระบบ
+            ⚙️ ตั้งค่า
           </button>
         </div>
 
-        {/* Tab Payments Responsive */}
+        {/* Tab 1: Payments */}
         {activeTab === 'payments' && (
-          <div className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="font-bold text-xs md:text-sm text-slate-800">รายการรับชำระเงินเงินจากนักเรียน</h2>
+          <div className="space-y-3">
+            {/* Mobile View: Data Cards */}
+            <div className="block md:hidden space-y-3">
+              {payments.map((p) => {
+                const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
+                return (
+                  <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-2">
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <span className="text-slate-400 text-[10px]">{new Date(p.created_at).toLocaleDateString('th-TH')}</span>
+                      {p.paid_to_tutor ? (
+                        <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                          ✓ โอนแล้ว
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setTransferModalPayment(p)}
+                          className="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                        >
+                          โอนต่อติวเตอร์
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block">นักเรียน:</span>
+                        <span className="font-semibold text-slate-800 truncate block">{p.student_email}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">ติวเตอร์:</span>
+                        <span className="font-semibold text-slate-800 truncate block">{p.tutor_email}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">ยอดรวม / ติวเตอร์ได้</span>
+                        <span className="font-bold text-slate-800">{p.amount}฿</span> → <span className="font-bold text-indigo-600">{p.tutor_amount}฿</span>
+                      </div>
+                      {p.slip_url && (
+                        <button
+                          onClick={() => setSelectedSlipUrl(p.slip_url || null)}
+                          className="bg-indigo-50 text-indigo-600 font-bold px-2.5 py-1 rounded-lg border border-indigo-200 text-[10px]"
+                        >
+                          ดูสลิป
+                        </button>
+                      )}
+                    </div>
+
+                    {tutorInfo?.bank_account_no && (
+                      <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 flex justify-between items-center">
+                        <span>โอนเข้า: <strong>{tutorInfo.bank_name}</strong> {tutorInfo.bank_account_no}</span>
+                        <button
+                          onClick={() => copyToClipboard(tutorInfo.bank_account_no || '')}
+                          className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold"
+                        >
+                          คัดลอก
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            {payments.length === 0 ? (
-              <p className="text-center text-xs text-slate-400 p-8">ยังไม่มีรายการโอนเงินในระบบ</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px] md:text-xs text-slate-700 min-w-[700px]">
-                  <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
-                    <tr>
-                      <th className="p-3 md:p-4">วันที่/เวลา</th>
-                      <th className="p-3 md:p-4">นักเรียน</th>
-                      <th className="p-3 md:p-4">สลิป</th>
-                      <th className="p-3 md:p-4">ติวเตอร์</th>
-                      <th className="p-3 md:p-4">ยอดรวม</th>
-                      <th className="p-3 md:p-4">ยอดติวเตอร์</th>
-                      <th className="p-3 md:p-4">บัญชีโอน</th>
-                      <th className="p-3 md:p-4 text-center">ดำเนินการ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {payments.map((p) => {
-                      const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
-                      return (
-                        <tr key={p.id} className="hover:bg-slate-50/50 transition">
-                          <td className="p-3 md:p-4 text-slate-400">{new Date(p.created_at).toLocaleDateString('th-TH')}</td>
-                          <td className="p-3 md:p-4 font-semibold text-slate-800 truncate max-w-[120px]">{p.student_email}</td>
-                          <td className="p-3 md:p-4">
-                            {p.slip_url ? (
-                              <button
-                                onClick={() => setSelectedSlipUrl(p.slip_url || null)}
-                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold px-2.5 py-1 rounded-lg border border-indigo-200 transition text-[10px]"
-                              >
-                                ดูสลิป
-                              </button>
-                            ) : (
-                              <span className="text-slate-300 italic text-[10px]">ไม่มี</span>
-                            )}
-                          </td>
-                          <td className="p-3 md:p-4 font-semibold text-slate-800 truncate max-w-[120px]">{p.tutor_email}</td>
-                          <td className="p-3 md:p-4 font-bold text-slate-800">{Number(p.amount).toLocaleString()}฿</td>
-                          <td className="p-3 md:p-4 font-bold text-indigo-600">{Number(p.tutor_amount).toLocaleString()}฿</td>
-                          <td className="p-3 md:p-4 text-[10px] leading-tight">
-                            {tutorInfo?.bank_account_no ? (
-                              <div>
-                                <span className="font-bold text-slate-800">{tutorInfo.bank_name}</span><br />
-                                <span className="text-indigo-600 font-mono font-bold">{tutorInfo.bank_account_no}</span>
-                              </div>
-                            ) : (
-                              <span className="text-rose-400 italic">ไม่ระบุ</span>
-                            )}
-                          </td>
-                          <td className="p-3 md:p-4 text-center">
-                            {p.paid_to_tutor ? (
-                              <span className="inline-block bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                                ✓ เรียบร้อย
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => setTransferModalPayment(p)}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-3 py-1 rounded-lg transition"
-                              >
-                                โอนต่อ
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+
+            {/* Desktop View: Table */}
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
+                  <tr>
+                    <th className="p-4">วันที่</th>
+                    <th className="p-4">นักเรียน</th>
+                    <th className="p-4">สลิป</th>
+                    <th className="p-4">ติวเตอร์</th>
+                    <th className="p-4">ยอดรวม</th>
+                    <th className="p-4">ติวเตอร์ได้รับ</th>
+                    <th className="p-4">บัญชี</th>
+                    <th className="p-4 text-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((p) => {
+                    const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/50">
+                        <td className="p-4 text-slate-400">{new Date(p.created_at).toLocaleDateString('th-TH')}</td>
+                        <td className="p-4 font-semibold">{p.student_email}</td>
+                        <td className="p-4">
+                          {p.slip_url ? (
+                            <button
+                              onClick={() => setSelectedSlipUrl(p.slip_url || null)}
+                              className="bg-indigo-50 text-indigo-600 font-bold px-2.5 py-1 rounded-lg border border-indigo-200 text-[10px]"
+                            >
+                              สลิป
+                            </button>
+                          ) : '-'}
+                        </td>
+                        <td className="p-4 font-semibold">{p.tutor_email}</td>
+                        <td className="p-4 font-bold">{p.amount}฿</td>
+                        <td className="p-4 font-bold text-indigo-600">{p.tutor_amount}฿</td>
+                        <td className="p-4 text-[10px]">
+                          {tutorInfo?.bank_account_no ? `${tutorInfo.bank_name} ${tutorInfo.bank_account_no}` : '-'}
+                        </td>
+                        <td className="p-4 text-center">
+                          {p.paid_to_tutor ? (
+                            <span className="text-emerald-600 font-bold text-[11px]">✓ โอนแล้ว</span>
+                          ) : (
+                            <button
+                              onClick={() => setTransferModalPayment(p)}
+                              className="bg-indigo-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg"
+                            >
+                              โอนต่อ
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {/* Tab Tutors Responsive */}
+        {/* Tab 2: Tutors */}
         {activeTab === 'tutors' && (
-          <div className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="font-bold text-xs md:text-sm text-slate-800">รายชื่อติวเตอร์ทั้งหมด</h2>
+          <div className="space-y-3">
+            <div className="block md:hidden space-y-2">
+              {tutors.map((t) => (
+                <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-1">
+                  <div className="flex justify-between font-bold">
+                    <span>{t.name} ({t.nickname || '-'})</span>
+                    <span className="text-emerald-600">{t.price}฿/ชม.</span>
+                  </div>
+                  <p className="text-indigo-600 font-semibold">{t.subject}</p>
+                  <p className="text-slate-400 text-[10px]">{t.email}</p>
+                  {t.bank_account_no && (
+                    <p className="text-slate-500 text-[10px] pt-1 border-t border-slate-100">
+                      บัญชี: {t.bank_name} {t.bank_account_no} ({t.bank_account_name})
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px] md:text-xs text-slate-700 min-w-[500px]">
+
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
                   <tr>
-                    <th className="p-3 md:p-4">ชื่อติวเตอร์</th>
-                    <th className="p-3 md:p-4">วิชาที่สอน</th>
-                    <th className="p-3 md:p-4">ค่าสอน/ชม.</th>
-                    <th className="p-3 md:p-4">บัญชีรับเงิน</th>
+                    <th className="p-4">ชื่อ</th>
+                    <th className="p-4">อีเมล</th>
+                    <th className="p-4">วิชา</th>
+                    <th className="p-4">ค่าสอน</th>
+                    <th className="p-4">บัญชีรับเงิน</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {tutors.map((t) => (
-                    <tr key={t.id} className="hover:bg-slate-50/50 transition">
-                      <td className="p-3 md:p-4 font-bold text-slate-800">{t.name}</td>
-                      <td className="p-3 md:p-4 font-semibold text-indigo-600">{t.subject}</td>
-                      <td className="p-3 md:p-4 font-bold text-emerald-600">{t.price} ฿</td>
-                      <td className="p-3 md:p-4 text-[10px]">
-                        {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no}` : <span className="text-slate-400 italic">ยังไม่กรอก</span>}
+                    <tr key={t.id} className="hover:bg-slate-50/50">
+                      <td className="p-4 font-bold">{t.name}</td>
+                      <td className="p-4 text-slate-500">{t.email}</td>
+                      <td className="p-4 font-semibold text-indigo-600">{t.subject}</td>
+                      <td className="p-4 font-bold text-emerald-600">{t.price} ฿</td>
+                      <td className="p-4 text-[10px]">
+                        {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no}` : 'ยังไม่กรอก'}
                       </td>
                     </tr>
                   ))}
@@ -456,27 +519,34 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab Students Responsive */}
+        {/* Tab 3: Students */}
         {activeTab === 'students' && (
-          <div className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="font-bold text-xs md:text-sm text-slate-800">รายชื่อนักเรียนทั้งหมด</h2>
+          <div className="space-y-3">
+            <div className="block md:hidden space-y-2">
+              {students.map((s) => (
+                <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-1">
+                  <div className="font-bold text-slate-800">{s.name} ({s.nickname || '-'})</div>
+                  <p className="text-slate-500 text-[10px]">{s.email}</p>
+                  <p className="text-indigo-600 text-[11px]">สนใจ: {s.target_subject || '-'}</p>
+                </div>
+              ))}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px] md:text-xs text-slate-700 min-w-[500px]">
+
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
                   <tr>
-                    <th className="p-3 md:p-4">ชื่อนักเรียน</th>
-                    <th className="p-3 md:p-4">อีเมล</th>
-                    <th className="p-3 md:p-4">วิชาสนใจ</th>
+                    <th className="p-4">ชื่อ</th>
+                    <th className="p-4">อีเมล</th>
+                    <th className="p-4">วิชาสนใจ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {students.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50/50 transition">
-                      <td className="p-3 md:p-4 font-bold text-slate-800">{s.name}</td>
-                      <td className="p-3 md:p-4 text-slate-500">{s.email}</td>
-                      <td className="p-3 md:p-4 font-semibold text-indigo-600">{s.target_subject || '-'}</td>
+                    <tr key={s.id} className="hover:bg-slate-50/50">
+                      <td className="p-4 font-bold">{s.name}</td>
+                      <td className="p-4 text-slate-500">{s.email}</td>
+                      <td className="p-4 font-semibold text-indigo-600">{s.target_subject || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -485,140 +555,81 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab Settings Responsive */}
+        {/* Tab 4: Settings */}
         {activeTab === 'settings' && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/80 max-w-lg mx-auto">
-            <h2 className="text-sm md:text-base font-bold text-slate-800 mb-1">⚙️ ตั้งค่าระบบการเงินแพลตฟอร์ม</h2>
-            <p className="text-xs text-slate-400 mb-4 md:mb-6">ระบุเบอร์พร้อมเพย์รับเงิน และ % คอมมิชชัน</p>
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 max-w-lg mx-auto">
+            <h2 className="text-sm font-bold text-slate-800 mb-1">⚙️ ตั้งค่าระบบการเงิน</h2>
+            <p className="text-xs text-slate-400 mb-4">กำหนดเบอร์พร้อมเพย์รับเงิน และ % ค่าคอมมิชชัน</p>
 
-            <form onSubmit={handleSaveSettings} className="space-y-4">
+            <form onSubmit={handleSaveSettings} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">เบอร์พร้อมเพย์ แพลตฟอร์ม</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">เบอร์พร้อมเพย์</label>
                 <input
                   type="text" required
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base md:text-xs font-semibold text-slate-800"
                   value={promptPayNumber} onChange={(e) => setPromptPayNumber(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">อัตราค่าคอมมิชชัน (%)</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ค่าคอมมิชชัน (%)</label>
                 <input
                   type="number" required min="0" max="100"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base md:text-xs font-semibold text-slate-800"
                   value={commissionRate} onChange={(e) => setCommissionRate(Number(e.target.value))}
                 />
               </div>
 
               <button
                 type="submit" disabled={savingSettings}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-lg transition disabled:bg-slate-300"
+                className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md"
               >
-                {savingSettings ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+                {savingSettings ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </form>
           </div>
         )}
       </div>
 
-      {/* Modal 1: ดูรูปสลิป Responsive */}
+      {/* Modal View Slip */}
       {selectedSlipUrl && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
-          <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 max-w-md w-full shadow-2xl space-y-4 relative">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-xs md:text-sm text-slate-800 flex items-center gap-1.5">
-                <span>🧾</span> หลักฐานการโอนเงิน (สลิป)
-              </h3>
-              <button
-                onClick={() => setSelectedSlipUrl(null)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-xs transition"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3">
+          <div className="bg-white rounded-2xl p-4 max-w-md w-full shadow-2xl space-y-3 relative">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-extrabold text-xs text-slate-800">🧾 สลิปการโอนเงิน</h3>
+              <button onClick={() => setSelectedSlipUrl(null)} className="text-slate-400 font-bold text-sm">✕</button>
             </div>
-
-            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center max-h-[65vh] overflow-y-auto">
-              <img
-                src={selectedSlipUrl}
-                alt="Slip full view"
-                className="w-full h-auto rounded-lg shadow-sm border border-slate-200 mx-auto"
-              />
+            <div className="max-h-[60vh] overflow-y-auto">
+              <img src={selectedSlipUrl} alt="Slip" className="w-full h-auto rounded-lg" />
             </div>
-
-            <div className="flex justify-between items-center pt-1">
-              <a
-                href={selectedSlipUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-indigo-600 font-bold hover:underline"
-              >
-                🔗 เปิดในหน้าต่างใหม่
-              </a>
-              <button
-                onClick={() => setSelectedSlipUrl(null)}
-                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
-              >
-                ปิดหน้าต่าง
-              </button>
+            <div className="text-right">
+              <button onClick={() => setSelectedSlipUrl(null)} className="bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl">ปิด</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal 2: โอนเงินต่อให้ติวเตอร์ Responsive */}
+      {/* Modal Payout */}
       {transferModalPayment && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
-          <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 max-w-md w-full shadow-2xl space-y-4 relative">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-xs md:text-sm text-slate-800 flex items-center gap-1.5">
-                <span>💸</span> โอนเงินต่อให้ติวเตอร์
-              </h3>
-              <button
-                onClick={() => {
-                  setTransferModalPayment(null)
-                  setPayoutSlipFile(null)
-                  setPayoutSlipPreview(null)
-                }}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-xs transition"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3">
+          <div className="bg-white rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-3 relative">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-extrabold text-xs text-slate-800">💸 โอนเงินต่อให้ติวเตอร์</h3>
+              <button onClick={() => setTransferModalPayment(null)} className="text-slate-400 font-bold text-sm">✕</button>
             </div>
 
-            <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 space-y-1.5 text-xs text-slate-700">
-              <div className="flex justify-between">
-                <span className="text-slate-500">ติวเตอร์:</span>
-                <strong className="text-slate-800 truncate max-w-[180px]">{transferModalPayment.tutor_email}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">ยอดที่ต้องโอน:</span>
-                <strong className="text-indigo-600 font-black">{Number(transferModalPayment.tutor_amount).toLocaleString()} บาท</strong>
-              </div>
+            <div className="bg-indigo-50 p-3 rounded-xl space-y-1 text-xs">
+              <div className="flex justify-between"><span className="text-slate-500">ติวเตอร์:</span><strong>{transferModalPayment.tutor_email}</strong></div>
+              <div className="flex justify-between"><span className="text-slate-500">ยอดสุทธิ:</span><strong className="text-indigo-600 font-black">{transferModalPayment.tutor_amount} บาท</strong></div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700">
-                📸 แนบสลิปการโอนเงิน: <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePayoutFileChange}
-                className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl p-1"
-              />
-
-              {payoutSlipPreview && (
-                <div className="mt-2 text-center bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <img src={payoutSlipPreview} alt="Payout Slip preview" className="max-h-36 mx-auto rounded-lg shadow-sm border border-slate-200" />
-                </div>
-              )}
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">แนบสลิปการโอน:</label>
+              <input type="file" accept="image/*" onChange={handlePayoutFileChange} className="w-full text-xs p-1 border rounded-xl" />
+              {payoutSlipPreview && <img src={payoutSlipPreview} alt="Preview" className="max-h-28 mx-auto rounded-lg mt-2" />}
             </div>
 
-            <button
-              onClick={handleConfirmPayoutToTutor}
-              disabled={submittingPayout}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold text-xs shadow-md transition disabled:bg-slate-300"
-            >
+            <button onClick={handleConfirmPayoutToTutor} disabled={submittingPayout} className="w-full bg-emerald-500 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">
               {submittingPayout ? 'กำลังบันทึก...' : 'ยืนยันโอนเงิน & ส่งสลิป'}
             </button>
           </div>

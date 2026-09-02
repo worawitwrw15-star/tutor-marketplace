@@ -203,7 +203,7 @@ function ChatContent() {
             <img
               src={cleanedUrl}
               alt="หลักฐาน/สลิป"
-              className="max-w-[180px] sm:max-w-[220px] max-h-48 sm:max-h-56 rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition shadow-sm"
+              className="max-w-[160px] sm:max-w-[220px] max-h-48 sm:max-h-56 rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition shadow-sm"
               onClick={() => setSelectedImageModal(cleanedUrl)}
             />
             <span className="text-[9px] text-slate-300 block mt-0.5">🔍 คลิกดูรูปใหญ่</span>
@@ -221,13 +221,19 @@ function ChatContent() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-2 sm:p-4 md:p-6 flex flex-col items-center justify-center">
-      <div className="max-w-5xl w-full bg-white rounded-2xl md:rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 flex h-[90vh] md:h-[85vh] overflow-hidden">
+    <main className="h-screen md:min-h-screen bg-slate-100 p-0 md:p-6 flex flex-col items-center justify-center overflow-hidden">
+      <div className="w-full max-w-5xl bg-white md:rounded-3xl shadow-xl border-0 md:border border-slate-100 flex h-full md:h-[85vh] overflow-hidden">
         
+        {/* Sidebar */}
         <div className={`w-full md:w-1/3 border-r border-slate-100 bg-slate-50/50 flex flex-col ${!showMobileList ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white">
-            <h2 className="font-extrabold text-sm text-slate-800">รายการแชท</h2>
-            <p className="text-[10px] md:text-[11px] text-slate-400 truncate mt-0.5">{getDisplayName(userEmail)}</p>
+          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white flex justify-between items-center">
+            <div>
+              <h2 className="font-extrabold text-sm text-slate-800">รายการแชท</h2>
+              <p className="text-[10px] md:text-[11px] text-slate-400 truncate mt-0.5">{getDisplayName(userEmail)}</p>
+            </div>
+            <Link href="/" className="md:hidden text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+              หน้าหลัก
+            </Link>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {chatPartners.length === 0 ? (
@@ -245,7 +251,7 @@ function ChatContent() {
                     }}
                     className={`w-full p-3 text-left rounded-xl text-xs font-semibold transition truncate flex items-center justify-between relative ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                        ? 'bg-indigo-600 text-white shadow-md'
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -262,44 +268,45 @@ function ChatContent() {
               })
             )}
           </div>
-          <div className="p-3 border-t border-slate-100 bg-white">
+          <div className="p-3 border-t border-slate-100 bg-white hidden md:block">
             <Link href="/" className="block text-center text-xs font-semibold bg-slate-100 text-slate-600 py-2.5 rounded-xl hover:bg-slate-200 transition">
               ← กลับหน้าหลัก
             </Link>
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col bg-white ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white flex items-center justify-between gap-2">
+        {/* Main Chat Area */}
+        <div className={`flex-1 flex flex-col bg-white h-full ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-3 md:p-4 border-b border-slate-100 bg-white flex items-center justify-between gap-2 flex-shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               <button
                 onClick={() => setShowMobileList(true)}
-                className="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition flex-shrink-0"
+                className="md:hidden bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
               >
-                ← แชท
+                ← รายชื่อ
               </button>
               <h1 className="font-bold text-xs md:text-sm text-slate-800 truncate">
-                {activePartner ? `สนทนากับ: ${getDisplayName(activePartner)}` : 'กรุณาเลือกผู้สนทนา'}
+                {activePartner ? `สนทนากับ: ${getDisplayName(activePartner)}` : 'เลือกผู้สนทนา'}
               </h1>
             </div>
 
-            {/* เพิ่มปุ่มกดกลับหน้าหลักในโหมดแชทมือถือ */}
             <Link
               href="/"
-              className="md:hidden bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 flex-shrink-0"
+              className="md:hidden bg-indigo-50 text-indigo-600 text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
             >
-              <span>🏠</span> หน้าหลัก
+              🏠 หน้าหลัก
             </Link>
           </div>
 
+          {/* Message List */}
           <div className="flex-1 p-3 md:p-4 overflow-y-auto space-y-3 bg-slate-50/30">
             {!activePartner ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                เลือกคู่สนทนาจากรายการเพื่อเริ่มพูดคุย
+                เลือกคู่สนทนาเพื่อเริ่มพูดคุย
               </div>
             ) : filteredMessages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                ยังไม่มีข้อความ เริ่มต้นพิมพ์ทักทายได้เลย!
+                ยังไม่มีข้อความ เริ่มทักทายได้เลย!
               </div>
             ) : (
               filteredMessages.map((msg) => {
@@ -310,7 +317,7 @@ function ChatContent() {
                       {getDisplayName(msg.sender)}
                     </span>
                     <div
-                      className={`p-3 rounded-2xl text-xs shadow-sm max-w-[250px] sm:max-w-xs md:max-w-md leading-relaxed ${
+                      className={`p-3 rounded-2xl text-xs shadow-sm max-w-[80%] md:max-w-md leading-relaxed ${
                         isMe
                           ? 'bg-indigo-600 text-white rounded-tr-none'
                           : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
@@ -325,19 +332,20 @@ function ChatContent() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={sendMessage} className="p-2.5 md:p-4 border-t border-slate-100 bg-white flex gap-2">
+          {/* Form Input - ตั้งค่า text-base (16px) เพื่อแก้ iOS Auto-Zoom */}
+          <form onSubmit={sendMessage} className="p-2 md:p-4 border-t border-slate-100 bg-white flex gap-2 items-center flex-shrink-0 sticky bottom-0">
             <input
               type="text"
               disabled={!activePartner}
               placeholder={activePartner ? 'พิมพ์ข้อความ...' : 'เลือกคู่สนทนาก่อน'}
-              className="flex-1 p-2.5 md:p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+              className="flex-1 p-2.5 md:p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
               value={input}
               onChange={(e) => setInput(e.target.value)}
             />
             <button
               type="submit"
               disabled={sending || !activePartner}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-xs font-semibold shadow-md transition disabled:bg-slate-300"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-xs md:text-xs font-semibold shadow-md flex-shrink-0 disabled:bg-slate-300"
             >
               {sending ? 'ส่ง...' : 'ส่ง'}
             </button>
