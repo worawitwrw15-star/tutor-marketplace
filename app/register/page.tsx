@@ -9,6 +9,12 @@ export default function RegisterTutorPage() {
   const [subject, setSubject] = useState('')
   const [price, setPrice] = useState('')
   const [bio, setBio] = useState('')
+  
+  // เพิ่ม state สำหรับเก็บข้อมูลการรับเงิน
+  const [bankName, setBankName] = useState('พร้อมเพย์ / กสิกรไทย')
+  const [bankAccountNo, setBankAccountNo] = useState('')
+  const [bankAccountName, setBankAccountName] = useState('')
+
   const [userEmail, setUserEmail] = useState('')
   const [isEditMode, setIsEditMode] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -37,6 +43,9 @@ export default function RegisterTutorPage() {
       setSubject(data.subject || '')
       setPrice(data.price ? String(data.price) : '')
       setBio(data.bio || '')
+      setBankName(data.bank_name || 'พร้อมเพย์ / กสิกรไทย')
+      setBankAccountNo(data.bank_account_no || '')
+      setBankAccountName(data.bank_account_name || '')
       setIsEditMode(true)
     }
     setLoading(false)
@@ -46,7 +55,17 @@ export default function RegisterTutorPage() {
     e.preventDefault()
     setSubmitting(true)
 
-    const payload = { name, nickname, subject, price: Number(price), bio, email: userEmail }
+    const payload = { 
+      name, 
+      nickname, 
+      subject, 
+      price: Number(price), 
+      bio, 
+      email: userEmail,
+      bank_name: bankName,
+      bank_account_no: bankAccountNo,
+      bank_account_name: bankAccountName
+    }
 
     const { error } = isEditMode
       ? await supabase.from('tutors').update(payload).eq('email', userEmail)
@@ -133,9 +152,41 @@ export default function RegisterTutorPage() {
             />
           </div>
 
+          {/* ส่วนรับข้อมูลการโอนเงินของติวเตอร์ */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <h3 className="text-xs font-bold text-slate-700">💳 ข้อมูลบัญชีรับเงิน (สำหรับรับค่าสอนจากแพลตฟอร์ม)</h3>
+            
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">ธนาคาร / ช่องทางรับเงิน</label>
+              <input 
+                type="text" required placeholder="เช่น พร้อมเพย์ / กสิกรไทย / ไทยพาณิชย์"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                value={bankName} onChange={(e) => setBankName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">เลขบัญชี / เบอร์พร้อมเพย์</label>
+              <input 
+                type="text" required placeholder="เช่น 081-XXX-XXXX"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                value={bankAccountNo} onChange={(e) => setBankAccountNo(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">ชื่อบัญชี</label>
+              <input 
+                type="text" required placeholder="เช่น นายสมชาย สอนดี"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)}
+              />
+            </div>
+          </div>
+
           <button 
             type="submit" disabled={submitting || deleting}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/20 transition disabled:bg-slate-300"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/20 transition disabled:bg-slate-300 mt-2"
           >
             {submitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูลโปรไฟล์'}
           </button>
