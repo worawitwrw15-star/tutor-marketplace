@@ -201,17 +201,26 @@ export default function Home() {
                 <p className="text-slate-500 text-xs leading-relaxed mb-6 line-clamp-3">{tutor.bio}</p>
               </div>
 
+              {/* ปุ่มแชท และ ปุ่มจองเรียน/สแกนจ่าย */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div>
                   <span className="text-xs text-slate-400 block">ค่าสอน</span>
                   <span className="text-base font-black text-emerald-600">{tutor.price} <span className="text-xs font-normal text-slate-400">บาท/ชม.</span></span>
                 </div>
-                <Link 
-                  href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-md shadow-slate-900/10"
-                >
-                  จองเรียน / แชท
-                </Link>
+                <div className="flex gap-1.5">
+                  <Link 
+                    href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2.5 rounded-xl transition"
+                  >
+                    แชท
+                  </Link>
+                  <Link 
+                    href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20"
+                  >
+                    จองเรียน / สแกนจ่าย
+                  </Link>
+                </div>
               </div>
             </div>
           ))}
