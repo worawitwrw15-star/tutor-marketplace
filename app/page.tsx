@@ -208,24 +208,16 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end overflow-x-auto pb-1 sm:pb-0">
-            {(isStudent || isTutor) && (
-              <Link 
-                href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
-                className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-1 flex-shrink-0"
-              >
-                <span>🎧</span> ติดต่อแอดมิน
-              </Link>
-            )}
+            <Link 
+              href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
+              className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-1 flex-shrink-0"
+            >
+              <span>🎧</span> ติดต่อแอดมิน
+            </Link>
 
             {isTutor && (
               <Link href="/register" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex-shrink-0">
                 โปรไฟล์ติวเตอร์
-              </Link>
-            )}
-
-            {!isStudent && !isTutor && (
-              <Link href="/admin" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0">
-                <span>👑</span> แอดมิน
               </Link>
             )}
 
@@ -235,6 +227,7 @@ export default function Home() {
               className="relative px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0"
             >
               <span>💬</span> ห้องแชท
+              {/* แสดงจุดสีแดงกระพริบเฉพาะเมื่อมีข้อความใหม่ (hasUnread เป็น true) */}
               {hasUnread && (
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -295,7 +288,6 @@ export default function Home() {
                 <div>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
-                      {/* แสดงรูปโปรไฟล์ติวเตอร์ */}
                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold text-lg shadow-sm flex-shrink-0">
                         {tutor.avatar_url ? (
                           <img src={tutor.avatar_url} alt={tutor.name} className="w-full h-full object-cover" />
