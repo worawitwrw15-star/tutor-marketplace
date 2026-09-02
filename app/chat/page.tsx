@@ -257,11 +257,17 @@ function ChatContent() {
                   >
                     <span className="truncate pr-2">💬 {getDisplayName(partner)}</span>
 
+                    {/* จุดสีแดงกระพริบและป้ายข้อความใหม่ */}
                     {hasUnread && !isActive && (
-                      <span className="flex h-2.5 w-2.5 relative flex-shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-white"></span>
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded animate-pulse">
+                          ข้อความใหม่
+                        </span>
+                        <span className="flex h-2.5 w-2.5 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-white"></span>
+                        </span>
+                      </div>
                     )}
                   </button>
                 )
@@ -298,7 +304,6 @@ function ChatContent() {
             </Link>
           </div>
 
-          {/* Message List */}
           <div className="flex-1 p-3 md:p-4 overflow-y-auto space-y-3 bg-slate-50/30">
             {!activePartner ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
@@ -332,7 +337,6 @@ function ChatContent() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Form Input - ตั้งค่า text-base (16px) เพื่อแก้ iOS Auto-Zoom */}
           <form onSubmit={sendMessage} className="p-2 md:p-4 border-t border-slate-100 bg-white flex gap-2 items-center flex-shrink-0 sticky bottom-0">
             <input
               type="text"
