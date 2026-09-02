@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 
@@ -15,6 +15,12 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [userEmail, setUserEmail] = useState<string>('')
   const [sending, setSending] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // ฟังก์ชันสั่งเลื่อนลงด้านล่างสุด
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
     getUser()
@@ -24,7 +30,6 @@ export default function ChatPage() {
       .channel('chat_room')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         setMessages((prev) => {
-          // ป้องกันข้อความซ้ำ
           if (prev.some((msg) => msg.id === payload.new.id)) return prev
           return [...prev, payload.new as Message]
         })
@@ -35,6 +40,11 @@ export default function ChatPage() {
       supabase.removeChannel(channel)
     }
   }, [])
+
+  // เลื่อนลงล่างสุดอัตโนมัติทุกครั้งที่รายการข้อความ (messages) มีการเปลี่ยนแปลง
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   async function getUser() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -66,7 +76,7 @@ export default function ChatPage() {
 
     if (error) {
       alert('ส่งข้อความไม่สำเร็จ: ' + error.message)
-      setInput(textToSend) // คืนข้อความกลับเข้าช่องพิมพ์
+      setInput(textToSend)
     } else if (data && data.length > 0) {
       setMessages((prev) => {
         if (prev.some((m) => m.id === data[0].id)) return prev
@@ -109,6 +119,8 @@ export default function ChatPage() {
               </div>
             )
           })}
+          {/* Element อ้างอิงจุดล่างสุดสำหรับสั่ง scroll */}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Form */}
