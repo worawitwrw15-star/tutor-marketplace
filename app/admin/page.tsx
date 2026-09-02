@@ -34,6 +34,7 @@ interface Payment {
   status: string
   paid_to_tutor: boolean
   slip_url?: string
+  tutor_payout_slip_url?: string
   created_at: string
 }
 
@@ -50,8 +51,14 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students' | 'settings'>('payments')
   const [loading, setLoading] = useState(false)
 
-  // State สำหรับ Modal แสดงรูปสลิป
+  // State สำหรับ Modal ดูสลิปนักเรียน
   const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null)
+
+  // State สำหรับ Modal โอนเงินต่อให้ติวเตอร์ (พร้อมแนบสลิป)
+  const [transferModalPayment, setTransferModalPayment] = useState<Payment | null>(null)
+  const [payoutSlipFile, setPayoutSlipFile] = useState<File | null>(null)
+  const [payoutSlipPreview, setPayoutSlipPreview] = useState<string | null>(null)
+  const [submittingPayout, setSubmittingPayout] = useState(false)
 
   // System Settings State
   const [promptPayNumber, setPromptPayNumber] = useState('0812345678')
@@ -100,6 +107,92 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
+  // ฟังก์ชันคัดลอกเลขบัญชี
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    alert(`คัดลอกเลขบัญชี (${text}) เรียบร้อยแล้ว!`)
+  }
+
+  // ฟังก์ชันเลือกไฟล์สลิปที่จะส่งให้ติวเตอร์
+  const handlePayoutFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setPayoutSlipFile(file)
+      setPayoutSlipPreview(URL.createObjectURL(file))
+    }
+  }
+
+  // ยืนยันการโอนเงินต่อให้ติวเตอร์ พร้อมอัปโหลดสลิปและส่งแชท
+  const handleConfirmPayoutToTutor = async () => {
+    if (!transferModalPayment) return
+    if (!payoutSlipFile) {
+      alert('กรุณาแนบหลักฐานสลิปการโอนเงินให้ติวเตอร์ก่อนครับ')
+      return
+    }
+
+    setSubmittingPayout(true)
+
+    try {
+      // 1. อัปโหลดสลิปเข้า Supabase Storage
+      const fileExt = payoutSlipFile.name.split('.').pop()
+      const fileName = `payout_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = `slips/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('slips')
+        .upload(filePath, payoutSlipFile)
+
+      let payoutSlipUrl = ''
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage.from('slips').getPublicUrl(filePath)
+        payoutSlipUrl = publicUrlData.publicUrl
+      } else {
+        payoutSlipUrl = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(payoutSlipFile)
+        })
+      }
+
+      // 2. อัปเดตตาราง payments
+      const { error: updateError } = await supabase
+        .from('payments')
+        .update({
+          paid_to_tutor: true,
+          paid_at: new Date().toISOString(),
+          tutor_payout_slip_url: payoutSlipUrl
+        })
+        .eq('id', transferModalPayment.id)
+
+      if (updateError) {
+        alert('เกิดข้อผิดพลาดในการอัปเดต: ' + updateError.message)
+        setSubmittingPayout(false)
+        return
+      }
+
+      // 3. ส่งข้อความพร้อมแนบลิงก์รูปสลิปไปยังห้องแชทติวเตอร์
+      const notifyMsg = `💸 [แจ้งโอนเงินค่าสอนเรียบร้อย]\nทางแพลตฟอร์มได้โอนเงินยอดสุทธิ ${Number(transferModalPayment.tutor_amount).toLocaleString()} บาท สำหรับรายการสอนของนักเรียน (${transferModalPayment.student_email}) เรียบร้อยแล้วครับ\n\n📄 ดูหลักฐานสลิป: ${payoutSlipUrl}`
+
+      await supabase.from('messages').insert([
+        {
+          sender: 'system_admin@platform.com',
+          receiver: transferModalPayment.tutor_email,
+          content: notifyMsg
+        }
+      ])
+
+      alert('โอนเงินต่อให้ติวเตอร์เรียบร้อยแล้ว! ระบบได้ส่งสลิปไปยังห้องแชทของติวเตอร์เรียบร้อย')
+      setTransferModalPayment(null)
+      setPayoutSlipFile(null)
+      setPayoutSlipPreview(null)
+      fetchAdminData()
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาด: ' + err.message)
+    } finally {
+      setSubmittingPayout(false)
+    }
+  }
+
   // ฟังก์ชันบันทึกการตั้งค่าพร้อมเพย์และ % คอมมิชชัน
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,48 +210,15 @@ export default function AdminDashboard() {
     setSavingSettings(false)
   }
 
-  // ยืนยันโอนเงินต่อให้ติวเตอร์ พร้อมส่งแชทแจ้งเตือนอัตโนมัติ
-  const handleTransferToTutor = async (payment: Payment) => {
-    if (!confirm(`ยืนยันว่าได้โอนเงินจำนวน ${Number(payment.tutor_amount).toLocaleString()} บาท ให้ติวเตอร์ (${payment.tutor_email}) เรียบร้อยแล้ว?`)) return
-
-    // 1. อัปเดตสถานะในตาราง payments
-    const { error: updateError } = await supabase
-      .from('payments')
-      .update({
-        paid_to_tutor: true,
-        paid_at: new Date().toISOString()
-      })
-      .eq('id', payment.id)
-
-    if (updateError) {
-      alert('เกิดข้อผิดพลาดในการอัปเดต: ' + updateError.message)
-      return
-    }
-
-    // 2. ส่งข้อความแจ้งเตือนอัตโนมัติไปที่ห้องแชทของติวเตอร์
-    const notifyMsg = `💸 [แจ้งโอนเงินค่าสอน] ทางแพลตฟอร์มได้โอนเงินยอดสุทธิ ${Number(payment.tutor_amount).toLocaleString()} บาท สำหรับรายการสอนของนักเรียน (${payment.student_email}) เข้าบัญชีธนาคารของคุณเรียบร้อยแล้วครับ`
-    
-    await supabase.from('messages').insert([
-      { 
-        sender: 'system_admin@platform.com', 
-        receiver: payment.tutor_email, 
-        content: notifyMsg 
-      }
-    ])
-
-    alert('บันทึกสถานะเรียบร้อย และส่งข้อความแจ้งเตือนไปยังแชทของติวเตอร์แล้ว!')
-    fetchAdminData()
-  }
-
   // ส่งออกรายงาน CSV สรุปรายเดือน
   const exportMonthlyCSV = () => {
     if (payments.length === 0) return alert('ไม่มีข้อมูลรายการโอนเงิน')
 
-    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์,ลิงก์สลิป\n"
+    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์,สลิปนักเรียน,สลิปโอนต่อติวเตอร์\n"
     payments.forEach((p) => {
       const date = new Date(p.created_at).toLocaleString('th-TH')
       const status = p.paid_to_tutor ? "โอนให้ติวเตอร์แล้ว" : "รอดำเนินการ"
-      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${p.commission_amount},${p.tutor_amount},"${status}","${p.slip_url || '-'}"\n`
+      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${p.commission_amount},${p.tutor_amount},"${status}","${p.slip_url || '-'}","${p.tutor_payout_slip_url || '-'}"\n`
     })
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -347,10 +407,18 @@ export default function AdminDashboard() {
                           <td className="p-4 font-bold text-indigo-600">{Number(p.tutor_amount).toLocaleString()} ฿</td>
                           <td className="p-4 text-[11px] leading-snug">
                             {tutorInfo?.bank_account_no ? (
-                              <div>
-                                <span className="font-bold text-slate-800">{tutorInfo.bank_name}</span><br />
-                                <span className="text-indigo-600 font-mono font-bold">{tutorInfo.bank_account_no}</span><br />
-                                <span className="text-slate-400">({tutorInfo.bank_account_name})</span>
+                              <div className="space-y-1">
+                                <div>
+                                  <span className="font-bold text-slate-800">{tutorInfo.bank_name}</span><br />
+                                  <span className="text-indigo-600 font-mono font-bold text-xs">{tutorInfo.bank_account_no}</span><br />
+                                  <span className="text-slate-400">({tutorInfo.bank_account_name})</span>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(tutorInfo.bank_account_no || '')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-slate-200 transition flex items-center gap-1 mt-1"
+                                >
+                                  📋 คัดลอกเลขบัญชี
+                                </button>
                               </div>
                             ) : (
                               <span className="text-rose-400 italic">ไม่ได้ระบุบัญชี</span>
@@ -358,12 +426,24 @@ export default function AdminDashboard() {
                           </td>
                           <td className="p-4 text-center">
                             {p.paid_to_tutor ? (
-                              <span className="inline-block bg-emerald-50 text-emerald-600 text-[11px] font-bold px-3 py-1.5 rounded-full border border-emerald-200">
-                                ✓ ดำเนินการเรียบร้อยแล้ว
-                              </span>
+                              <div className="space-y-1">
+                                <span className="inline-block bg-emerald-50 text-emerald-600 text-[11px] font-bold px-3 py-1 rounded-full border border-emerald-200">
+                                  ✓ ดำเนินการเรียบร้อยแล้ว
+                                </span>
+                                {p.tutor_payout_slip_url && (
+                                  <div>
+                                    <button
+                                      onClick={() => setSelectedSlipUrl(p.tutor_payout_slip_url || null)}
+                                      className="text-[10px] text-indigo-600 font-bold hover:underline"
+                                    >
+                                      📄 ดูสลิปที่โอนให้ติวเตอร์
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <button
-                                onClick={() => handleTransferToTutor(p)}
+                                onClick={() => setTransferModalPayment(p)}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-xl shadow-sm transition"
                               >
                                 โอนต่อให้ติวเตอร์
@@ -407,7 +487,19 @@ export default function AdminDashboard() {
                       <td className="p-4 font-semibold text-indigo-600">{t.subject}</td>
                       <td className="p-4 font-bold text-emerald-600">{t.price} ฿</td>
                       <td className="p-4 text-[11px]">
-                        {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no} (${t.bank_account_name})` : <span className="text-slate-400 italic">ยังไม่กรอก</span>}
+                        {t.bank_account_no ? (
+                          <div className="flex items-center gap-2">
+                            <span>{t.bank_name} | <strong className="font-mono">{t.bank_account_no}</strong> ({t.bank_account_name})</span>
+                            <button
+                              onClick={() => copyToClipboard(t.bank_account_no || '')}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-0.5 rounded border border-slate-200 text-[10px] font-bold"
+                            >
+                              📋 คัดลอก
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic">ยังไม่กรอก</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -488,10 +580,10 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Modal ป๊อปอัปดูรูปสลิปการโอนเงิน */}
+      {/* Modal 1: ดูรูปสลิป */}
       {selectedSlipUrl && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative animate-in fade-in zoom-in duration-150">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
                 <span>🧾</span> หลักฐานการโอนเงิน (สลิป)
@@ -528,6 +620,86 @@ export default function AdminDashboard() {
                 ปิดหน้าต่าง
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: โอนเงินต่อให้ติวเตอร์ + อัปโหลดสลิปส่งเข้าแชท */}
+      {transferModalPayment && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 relative">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                <span>💸</span> โอนเงินต่อให้ติวเตอร์
+              </h3>
+              <button
+                onClick={() => {
+                  setTransferModalPayment(null)
+                  setPayoutSlipFile(null)
+                  setPayoutSlipPreview(null)
+                }}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* ข้อมูลการโอน */}
+            <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 space-y-2 text-xs text-slate-700">
+              <div className="flex justify-between">
+                <span className="text-slate-500">ติวเตอร์ผู้รับ:</span>
+                <strong className="text-slate-800">{transferModalPayment.tutor_email}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">ยอดเงินสุทธิที่ต้องโอน:</span>
+                <strong className="text-indigo-600 text-sm font-black">{Number(transferModalPayment.tutor_amount).toLocaleString()} บาท</strong>
+              </div>
+              {(() => {
+                const tutorObj = tutors.find((t) => t.email === transferModalPayment.tutor_email)
+                return tutorObj?.bank_account_no ? (
+                  <div className="pt-2 border-t border-indigo-100/80 flex justify-between items-center">
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">บัญชีโอนเงิน:</span>
+                      <strong className="text-slate-800 font-mono">{tutorObj.bank_name} {tutorObj.bank_account_no}</strong>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(tutorObj.bank_account_no || '')}
+                      className="bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm transition"
+                    >
+                      📋 คัดลอก
+                    </button>
+                  </div>
+                ) : null
+              })()}
+            </div>
+
+            {/* ช่องแนบสลิปการโอน */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">
+                📸 แนบสลิปการโอนเงินให้ติวเตอร์: <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePayoutFileChange}
+                className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl p-1.5"
+              />
+
+              {payoutSlipPreview && (
+                <div className="mt-2 text-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] text-slate-400 mb-1.5 font-medium">ตัวอย่างสลิปที่จะส่งให้ติวเตอร์:</p>
+                  <img src={payoutSlipPreview} alt="Payout Slip preview" className="max-h-44 mx-auto rounded-xl shadow-sm border border-slate-200" />
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleConfirmPayoutToTutor}
+              disabled={submittingPayout}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-emerald-500/20 transition disabled:bg-slate-300"
+            >
+              {submittingPayout ? 'กำลังบันทึกและส่งสลิป...' : 'ยืนยันโอนเงิน & ส่งสลิปให้ติวเตอร์'}
+            </button>
           </div>
         </div>
       )}
