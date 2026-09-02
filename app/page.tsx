@@ -36,12 +36,10 @@ export default function Home() {
     const email = session.user.email || ''
     setUserEmail(email)
 
-    // ดึงข้อมูลติวเตอร์ทั้งหมด
     const { data, error } = await supabase.from('tutors').select('*')
     if (error) console.error('Error fetching:', error)
     else {
       setTutors(data || [])
-      // ตรวจสอบว่าผู้ใช้ปัจจุบันมีโปรไฟล์ติวเตอร์อยู่แล้วหรือไม่
       const hasTutorProfile = (data || []).some((t) => t.email === email)
       setIsTutor(hasTutorProfile)
     }
@@ -77,7 +75,6 @@ export default function Home() {
             <p className="text-xs text-gray-400 mt-0.5">ยินดีต้อนรับ: {userEmail}</p>
           </div>
           <div className="flex gap-2">
-            {/* แสดงปุ่มต่างกันตามสถานะว่าเป็นติวเตอร์หรือไม่ */}
             {isTutor ? (
               <Link href="/register" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
                 จัดการโปรไฟล์ติวเตอร์
@@ -126,7 +123,10 @@ export default function Home() {
               </div>
               <div className="flex justify-between items-center border-t pt-4 mt-2">
                 <span className="text-lg font-bold text-green-600">{tutor.price} บาท/ชม.</span>
-                <Link href="/chat" className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-600 transition">
+                <Link 
+                  href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
+                  className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-600 transition"
+                >
                   จองเรียน / แชท
                 </Link>
               </div>
