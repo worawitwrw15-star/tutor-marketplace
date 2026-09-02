@@ -15,8 +15,16 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
 
+    // 1. ดักจับการเข้าสู่ระบบของแอดมิน (admin / TT546897!)
+    if (!isSignUp && email.trim() === 'admin' && password === 'TT546897!') {
+      sessionStorage.setItem('is_admin_logged_in', 'true')
+      alert('เข้าสู่ระบบแอดมินสำเร็จ!')
+      router.push('/admin')
+      return
+    }
+
     if (isSignUp) {
-      // 1. สมัครสมาชิก
+      // 2. สมัครสมาชิก
       const { error: signUpError } = await supabase.auth.signUp({ email, password })
       if (signUpError) {
         alert('เกิดข้อผิดพลาด: ' + signUpError.message)
@@ -24,7 +32,7 @@ export default function LoginPage() {
         return
       }
       
-      // 2. ล็อกอินให้อัตโนมัติหลังสมัครเสร็จ
+      // 3. ล็อกอินให้อัตโนมัติหลังสมัครเสร็จ
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) {
         alert('สมัครสำเร็จแล้ว กรุณากดเข้าสู่ระบบอีกครั้ง')
@@ -32,7 +40,7 @@ export default function LoginPage() {
         router.push('/onboarding')
       }
     } else {
-      // เข้าสู่ระบบปกติ
+      // เข้าสู่ระบบปกติของผู้ใช้ทั่วไปผ่าน Supabase
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         alert('เข้าสู่ระบบไม่สำเร็จ: ' + error.message)
@@ -51,10 +59,11 @@ export default function LoginPage() {
         </h1>
         <form onSubmit={handleAuth} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล / Username</label>
             <input 
-              type="email" 
+              type="text" 
               required 
+              placeholder="เช่น email@example.com หรือ admin"
               className="w-full p-3 border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
@@ -65,6 +74,7 @@ export default function LoginPage() {
             <input 
               type="password" 
               required 
+              placeholder="กรอกรหัสผ่าน"
               className="w-full p-3 border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
@@ -73,7 +83,7 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading} 
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition"
+            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:bg-gray-300"
           >
             {loading ? 'กำลังดำเนินการ...' : isSignUp ? 'ยืนยันการสมัคร' : 'เข้าสู่ระบบ'}
           </button>
