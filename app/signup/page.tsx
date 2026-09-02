@@ -48,27 +48,33 @@ export default function SignUp() {
     if (role === 'student') {
       const { error: studentError } = await supabase.from('students').insert([
         {
-          email,
-          name,
-          nickname,
-          target_subject: subject,
+          email: email.trim(),
+          name: name.trim(),
+          nickname: nickname.trim(),
+          target_subject: subject.trim(),
         },
       ])
 
-      if (studentError) console.error('Error creating student profile:', studentError)
+      if (studentError) {
+        console.error('Error creating student profile:', studentError)
+        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลนักเรียน: ' + studentError.message)
+      }
     } else {
       const { error: tutorError } = await supabase.from('tutors').insert([
         {
-          email,
-          name,
-          nickname,
-          subject,
+          email: email.trim(),
+          name: name.trim(),
+          nickname: nickname.trim(),
+          subject: subject.trim(),
           price: Number(price) || 0,
           bio: 'สวัสดีครับ/ค่ะ ยินดีต้อนรับสู่การเรียนการสอน',
         },
       ])
 
-      if (tutorError) console.error('Error creating tutor profile:', tutorError)
+      if (tutorError) {
+        console.error('Error creating tutor profile:', tutorError)
+        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลติวเตอร์: ' + tutorError.message)
+      }
     }
 
     alert('สมัครสมาชิกเรียบร้อยแล้ว! กำลังนำคุณไปหน้าเข้าสู่ระบบ...')
@@ -78,11 +84,9 @@ export default function SignUp() {
 
   return (
     <main className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-700 to-violet-800">
-      {/* วงกลมกราเดียนต์แสงด้านหลัง */}
       <div className="absolute top-10 left-10 w-72 h-72 bg-purple-500/30 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* ลวดลายไอคอนธีม ติวเตอร์ & นักเรียน */}
       <div className="absolute inset-0 pointer-events-none select-none opacity-20 md:opacity-30 flex flex-wrap justify-around items-center p-8 text-white">
         <div className="text-6xl animate-pulse">🎓</div>
         <div className="text-7xl animate-bounce duration-1000">👨‍🏫</div>
@@ -92,7 +96,6 @@ export default function SignUp() {
         <div className="text-6xl">💡</div>
       </div>
 
-      {/* กล่องการ์ดสมัครสมาชิก */}
       <div className="relative z-10 bg-white/95 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-white/20 space-y-5 my-8">
         
         <div className="text-center space-y-1">
@@ -106,7 +109,6 @@ export default function SignUp() {
         </div>
 
         <form onSubmit={handleSignUp} className="space-y-3.5">
-          {/* เลือกสถานะผู้ใช้ */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
               ประเภทผู้ใช้งาน
