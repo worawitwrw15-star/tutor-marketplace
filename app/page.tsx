@@ -12,6 +12,7 @@ interface Tutor {
   price: number
   bio: string
   email?: string
+  avatar_url?: string
 }
 
 interface Review {
@@ -207,7 +208,6 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end overflow-x-auto pb-1 sm:pb-0">
-            {/* เพิ่มปุ่มติดต่อแอดมินให้ทั้งนักเรียนและติวเตอร์ */}
             {(isStudent || isTutor) && (
               <Link 
                 href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
@@ -295,8 +295,13 @@ export default function Home() {
                 <div>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-50 border border-indigo-100 rounded-xl md:rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-base md:text-lg shadow-sm flex-shrink-0">
-                        {tutor.name.charAt(0)}
+                      {/* แสดงรูปโปรไฟล์ติวเตอร์ */}
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold text-lg shadow-sm flex-shrink-0">
+                        {tutor.avatar_url ? (
+                          <img src={tutor.avatar_url} alt={tutor.name} className="w-full h-full object-cover" />
+                        ) : (
+                          tutor.name.charAt(0)
+                        )}
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-bold text-sm md:text-base text-slate-800 leading-tight truncate">{tutor.name}</h4>
