@@ -29,6 +29,7 @@ export default function Home() {
 
   async function checkUserAndFetchData() {
     const { data: { session } } = await supabase.auth.getSession()
+
     if (!session) {
       router.push('/login')
       return
@@ -37,14 +38,22 @@ export default function Home() {
     const email = session.user.email || ''
     setUserEmail(email)
 
-    // ตรวจสอบสถานะบทบาท
-    const { data: tutorData } = await supabase.from('tutors').select('*')
-    const { data: studentData } = await supabase.from('students').select('*').eq('email', email).maybeSingle()
+    // 1. ดึงข้อมูลติวเตอร์ทั้งหมด
+    const { data: tutorData, error } = await supabase.from('tutors').select('*')
+    if (error) console.error('Error fetching tutors:', error)
+    else {
+      setTutors(tutorData || [])
+      setIsTutor((tutorData || []).some((t) => t.email === email))
+    }
 
-    setTutors(tutorData || [])
-    setIsTutor((tutorData || []).some((t) => t.email === email))
+    // 2. เช็กว่าผู้ใช้ปัจจุบันมีโปรไฟล์อยู่ในตารางนักเรียนหรือไม่
+    const { data: studentData } = await supabase
+      .from('students')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle()
+
     setIsStudent(!!studentData)
-    
     setLoading(false)
   }
 
@@ -56,7 +65,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">
-        กำลังโหลดข้อมูลแพลตฟอร์ม...
+        กำลังตรวจสอบสิทธิ์การใช้งาน...
       </div>
     )
   }
