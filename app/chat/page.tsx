@@ -22,8 +22,11 @@ function ChatContent() {
   const [profiles, setProfiles] = useState<Record<string, string>>({})
   const [sending, setSending] = useState(false)
   const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  // State สลับหน้ารายชื่อคู่สนทนาและกล่องแชทบนมือถือ
+  const [showMobileList, setShowMobileList] = useState(true)
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
   const tutorParam = searchParams.get('tutor')
 
@@ -35,7 +38,6 @@ function ChatContent() {
     initChat()
   }, [])
 
-  // เมื่อเปลี่ยนคู่สนทนา ให้ลบจุดแดงแจ้งเตือนของคนนั้นออก
   useEffect(() => {
     if (activePartner) {
       setUnreadPartners((prev) => {
@@ -63,7 +65,6 @@ function ChatContent() {
             setChatPartners((prev) => Array.from(new Set([...prev, partner])))
             fetchProfile(partner)
 
-            // หากข้อความส่งมาหาเรา และเราไม่ได้กำลังเปิดแชทกับคนนั้นอยู่ ให้ติดจุดสีแดง
             if (newMsg.receiver === userEmail && partner !== activePartner) {
               setUnreadPartners((prev) => new Set(prev).add(partner))
             }
@@ -117,7 +118,6 @@ function ChatContent() {
     const partners = new Set<string>()
     const unreads = new Set<string>()
 
-    // ตรวจหาแชทล่าสุดของแต่ละคู่สนทนา หากข้อความล่าสุดส่งมาหาเรา ให้แสดงจุดสีแดง
     const lastMsgPerPartner: Record<string, Message> = {}
     allMsgs.forEach((m) => {
       const partner = m.sender === myEmail ? m.receiver : m.sender
@@ -147,6 +147,11 @@ function ChatContent() {
     const partnerArray = Array.from(partners)
     setChatPartners(partnerArray)
     partnerArray.forEach((p) => fetchProfile(p))
+
+    // ถ้ามีพารามิเตอร์เลือกติวเตอร์มา ให้เปิดแชทบนมือถือทันที
+    if (tutorParam) {
+      setShowMobileList(false)
+    }
   }
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -186,7 +191,6 @@ function ChatContent() {
     return nick ? `${nick} (${email})` : email
   }
 
-  // ฟังก์ชันเรนเดอร์ลิงก์รูปภาพให้เป็นรูปแสดงในกล่องแชท
   const renderMessageContent = (content: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g
     const parts = content.split(urlRegex)
@@ -197,14 +201,14 @@ function ChatContent() {
       if (isImageUrl) {
         const cleanedUrl = part.replace('/slips/slips/', '/slips/')
         return (
-          <div key={index} className="my-2">
+          <div key={index} className="my-1.5">
             <img
               src={cleanedUrl}
               alt="หลักฐาน/สลิป"
-              className="max-w-[220px] max-h-56 rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition shadow-sm"
+              className="max-w-[180px] sm:max-w-[220px] max-h-48 sm:max-h-56 rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition shadow-sm"
               onClick={() => setSelectedImageModal(cleanedUrl)}
             />
-            <span className="text-[9px] text-slate-300 block mt-1">🔍 คลิกดูรูปใหญ่</span>
+            <span className="text-[9px] text-slate-300 block mt-0.5">🔍 คลิกดูรูปใหญ่</span>
           </div>
         )
       } else if (part.match(/^https?:\/\//)) {
@@ -219,14 +223,14 @@ function ChatContent() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-6 flex flex-col items-center">
-      <div className="max-w-5xl w-full bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 flex h-[85vh] overflow-hidden">
+    <main className="min-h-screen bg-slate-100 p-2 sm:p-4 md:p-6 flex flex-col items-center justify-center">
+      <div className="max-w-5xl w-full bg-white rounded-2xl md:rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 flex h-[90vh] md:h-[85vh] overflow-hidden">
         
-        {/* Sidebar */}
-        <div className="w-1/3 border-r border-slate-100 bg-slate-50/50 flex flex-col">
-          <div className="p-4 border-b border-slate-100 bg-white">
+        {/* Sidebar Responsive */}
+        <div className={`w-full md:w-1/3 border-r border-slate-100 bg-slate-50/50 flex flex-col ${!showMobileList ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white">
             <h2 className="font-extrabold text-sm text-slate-800">รายการแชท</h2>
-            <p className="text-[11px] text-slate-400 truncate mt-0.5">{getDisplayName(userEmail)}</p>
+            <p className="text-[10px] md:text-[11px] text-slate-400 truncate mt-0.5">{getDisplayName(userEmail)}</p>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {chatPartners.length === 0 ? (
@@ -238,7 +242,10 @@ function ChatContent() {
                 return (
                   <button
                     key={partner}
-                    onClick={() => setActivePartner(partner)}
+                    onClick={() => {
+                      setActivePartner(partner)
+                      setShowMobileList(false)
+                    }}
                     className={`w-full p-3 text-left rounded-xl text-xs font-semibold transition truncate flex items-center justify-between relative ${
                       isActive
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
@@ -247,7 +254,6 @@ function ChatContent() {
                   >
                     <span className="truncate pr-2">💬 {getDisplayName(partner)}</span>
 
-                    {/* จุดสีแดงแจ้งเตือนข้อความใหม่ */}
                     {hasUnread && !isActive && (
                       <span className="flex h-2.5 w-2.5 relative flex-shrink-0">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -266,18 +272,24 @@ function ChatContent() {
           </div>
         </div>
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-white">
-          <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
-            <h1 className="font-bold text-sm text-slate-800">
+        {/* Main Chat Area Responsive */}
+        <div className={`flex-1 flex flex-col bg-white ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-3.5 md:p-4 border-b border-slate-100 bg-white flex items-center gap-2">
+            <button
+              onClick={() => setShowMobileList(true)}
+              className="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition"
+            >
+              ← แชท
+            </button>
+            <h1 className="font-bold text-xs md:text-sm text-slate-800 truncate">
               {activePartner ? `สนทนากับ: ${getDisplayName(activePartner)}` : 'กรุณาเลือกผู้สนทนา'}
             </h1>
           </div>
 
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/30">
+          <div className="flex-1 p-3 md:p-4 overflow-y-auto space-y-3 bg-slate-50/30">
             {!activePartner ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                เลือกคู่สนทนาจากแถบด้านซ้ายเพื่อเริ่มพูดคุย
+                เลือกคู่สนทนาจากรายการเพื่อเริ่มพูดคุย
               </div>
             ) : filteredMessages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
@@ -288,11 +300,11 @@ function ChatContent() {
                 const isMe = msg.sender === userEmail
                 return (
                   <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                    <span className="text-[10px] text-slate-400 mb-1 px-1">
+                    <span className="text-[9px] md:text-[10px] text-slate-400 mb-0.5 px-1">
                       {getDisplayName(msg.sender)}
                     </span>
                     <div
-                      className={`p-3.5 rounded-2xl text-xs shadow-sm max-w-xs leading-relaxed ${
+                      className={`p-3 rounded-2xl text-xs shadow-sm max-w-[250px] sm:max-w-xs md:max-w-md leading-relaxed ${
                         isMe
                           ? 'bg-indigo-600 text-white rounded-tr-none'
                           : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
@@ -307,19 +319,19 @@ function ChatContent() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 bg-white flex gap-2">
+          <form onSubmit={sendMessage} className="p-2.5 md:p-4 border-t border-slate-100 bg-white flex gap-2">
             <input
               type="text"
               disabled={!activePartner}
-              placeholder={activePartner ? 'พิมพ์ข้อความ...' : 'เลือกคู่สนทนาก่อนพิมพ์'}
-              className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+              placeholder={activePartner ? 'พิมพ์ข้อความ...' : 'เลือกคู่สนทนาก่อน'}
+              className="flex-1 p-2.5 md:p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
               value={input}
               onChange={(e) => setInput(e.target.value)}
             />
             <button
               type="submit"
               disabled={sending || !activePartner}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/20 transition disabled:bg-slate-300"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-xs font-semibold shadow-md transition disabled:bg-slate-300"
             >
               {sending ? 'ส่ง...' : 'ส่ง'}
             </button>
@@ -328,11 +340,11 @@ function ChatContent() {
 
       </div>
 
-      {/* Modal ดูรูปสลิปขยายใหญ่ */}
+      {/* Modal ดูรูปสลิปขยายใหญ่ Responsive */}
       {selectedImageModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 relative">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 max-w-md w-full shadow-2xl space-y-3 relative">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2.5">
               <h3 className="font-extrabold text-xs text-slate-800">📄 รูปภาพหลักฐาน/สลิป</h3>
               <button
                 onClick={() => setSelectedImageModal(null)}
@@ -341,8 +353,8 @@ function ChatContent() {
                 ✕
               </button>
             </div>
-            <div className="max-h-[70vh] overflow-y-auto text-center bg-slate-50 p-2 rounded-2xl border border-slate-100">
-              <img src={selectedImageModal} alt="Expanded preview" className="w-full h-auto rounded-xl shadow-sm mx-auto" />
+            <div className="max-h-[65vh] overflow-y-auto text-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+              <img src={selectedImageModal} alt="Expanded preview" className="w-full h-auto rounded-lg shadow-sm mx-auto" />
             </div>
             <div className="text-right">
               <button
@@ -361,7 +373,7 @@ function ChatContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">กำลังโหลดห้องแชท...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-xs">กำลังโหลดห้องแชท...</div>}>
       <ChatContent />
     </Suspense>
   )

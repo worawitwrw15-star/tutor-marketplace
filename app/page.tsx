@@ -46,7 +46,6 @@ export default function Home() {
     checkUserAndFetchData()
   }, [])
 
-  // ดักฟัง Realtime เมื่อมีข้อความใหม่ส่งมาหาเรา
   useEffect(() => {
     if (!userEmail) return
 
@@ -76,7 +75,6 @@ export default function Home() {
     const email = session.user.email || ''
     setUserEmail(email)
 
-    // 1. ดึงข้อมูลติวเตอร์ทั้งหมด
     const { data: tutorData, error } = await supabase.from('tutors').select('*')
     if (error) console.error('Error fetching tutors:', error)
     else {
@@ -84,11 +82,9 @@ export default function Home() {
       setIsTutor((tutorData || []).some((t) => t.email === email))
     }
 
-    // 2. ดึงข้อมูลรีวิวทั้งหมด
     const { data: reviewData } = await supabase.from('reviews').select('*').order('created_at', { ascending: false })
     setReviews(reviewData || [])
 
-    // 3. เช็กสิทธิ์ตารางนักเรียน
     const { data: studentData } = await supabase
       .from('students')
       .select('*')
@@ -97,7 +93,6 @@ export default function Home() {
 
     setIsStudent(!!studentData)
 
-    // 4. เช็กข้อความที่มีเข้ามาเพื่อเปิดจุดแจ้งเตือน
     const { data: recentMsg } = await supabase
       .from('messages')
       .select('*')
@@ -111,7 +106,6 @@ export default function Home() {
     setLoading(false)
   }
 
-  // คำนวณคะแนนดาวเฉลี่ยของติวเตอร์
   const getTutorRatingInfo = (tutorEmail?: string) => {
     if (!tutorEmail) return { avg: '0.0', count: 0 }
     const tutorReviews = reviews.filter((r) => r.tutor_email === tutorEmail)
@@ -123,7 +117,6 @@ export default function Home() {
     }
   }
 
-  // ฟังก์ชันส่งรีวิวใหม่
   const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedTutorForReview || !selectedTutorForReview.email) return
@@ -149,7 +142,6 @@ export default function Home() {
       alert('ขอบคุณสำหรับรีวิวครับ!')
       setNewComment('')
       setNewRating(5)
-      // ดึงข้อมูลรีวิวมาอัปเดตใหม่
       const { data: updatedReviews } = await supabase.from('reviews').select('*').order('created_at', { ascending: false })
       setReviews(updatedReviews || [])
     }
@@ -164,7 +156,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-xs md:text-sm">
         กำลังตรวจสอบสิทธิ์การใช้งาน...
       </div>
     )
@@ -178,73 +170,79 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50/60 text-slate-800 relative">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 px-6 py-4 shadow-sm">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-600/20">
-              T
+      {/* Top Navbar Responsive */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 md:px-6 py-3 shadow-sm">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg shadow-indigo-600/20">
+                T
+              </div>
+              <div>
+                <h1 className="font-extrabold text-sm md:text-base text-slate-800 leading-tight">Tutor Marketplace</h1>
+                <p className="text-[10px] md:text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5 truncate max-w-[180px] sm:max-w-xs">
+                  <span className="truncate">{userEmail}</span>
+                  <span className="inline-block w-1 h-1 rounded-full bg-slate-300 flex-shrink-0"></span>
+                  {isTutor ? (
+                    <span className="text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100/60 flex-shrink-0">
+                      👨‍🏫 ติวเตอร์
+                    </span>
+                  ) : isStudent ? (
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/60 flex-shrink-0">
+                      🎓 นักเรียน
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                      👤 ผู้ใช้ทั่วไป
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-extrabold text-slate-800 leading-tight">Tutor Marketplace</h1>
-              {/* แสดงสถานะบทบาทในระบบต่อจากอีเมล */}
-              <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
-                <span>{userEmail}</span>
-                <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
-                {isTutor ? (
-                  <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/60">
-                    👨‍🏫 ติวเตอร์
-                  </span>
-                ) : isStudent ? (
-                  <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/60">
-                    🎓 นักเรียน
-                  </span>
-                ) : (
-                  <span className="text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-md">
-                    👤 ผู้ใช้ทั่วไป
-                  </span>
-                )}
-              </p>
-            </div>
+            
+            <button 
+              onClick={handleLogout} 
+              className="sm:hidden px-2.5 py-1.5 text-[11px] font-bold text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-lg transition"
+            >
+              ออก
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* แสดงปุ่มตามสิทธิ์ผู้ใช้ */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end overflow-x-auto pb-1 sm:pb-0">
             {isStudent ? (
               <Link 
                 href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
-                className="px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-1.5"
+                className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-1 flex-shrink-0"
               >
-                <span>🎧</span> ติดต่อแอดมิน
+                <span>🎧</span> แอดมิน
               </Link>
             ) : isTutor ? (
-              <Link href="/register" className="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/20 transition">
-                จัดการโปรไฟล์ติวเตอร์
+              <Link href="/register" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex-shrink-0">
+                โปรไฟล์ติวเตอร์
               </Link>
             ) : (
-              <Link href="/admin" className="px-3.5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md transition flex items-center gap-1">
+              <Link href="/admin" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0">
                 <span>👑</span> แอดมิน
               </Link>
             )}
 
-            {/* ปุ่มห้องแชท พร้อมจุดแจ้งเตือนสีแดง */}
             <Link 
               href="/chat" 
               onClick={() => setHasUnread(false)}
-              className="relative px-4 py-2 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5"
+              className="relative px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0"
             >
               <span>💬</span> ห้องแชท
               {hasUnread && (
-                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-white"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-white"></span>
                 </span>
               )}
             </Link>
 
             <button 
               onClick={handleLogout} 
-              className="px-3.5 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-xl transition"
+              className="hidden sm:block px-3 py-1.5 md:py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-xl transition"
             >
               ออกจากระบบ
             </button>
@@ -252,103 +250,100 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Header Banner */}
-      <section className="max-w-6xl mx-auto px-6 pt-10 pb-6">
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 rounded-3xl p-8 md:p-12 text-white shadow-xl shadow-indigo-600/10 text-center relative overflow-hidden">
+      {/* Hero Header Banner Responsive */}
+      <section className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-10 pb-4 md:pb-6">
+        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl md:rounded-3xl p-6 md:p-12 text-white shadow-xl shadow-indigo-600/10 text-center relative overflow-hidden">
           <div className="relative z-10 max-w-2xl mx-auto">
-            <span className="bg-white/20 text-white text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md inline-block mb-3">
+            <span className="bg-white/20 text-white text-[10px] md:text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md inline-block mb-2 md:mb-3">
               ✨ แพลตฟอร์มค้นหาติวเตอร์ส่วนตัว
             </span>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-3">
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2 md:mb-3">
               ค้นหาติวเตอร์ส่วนตัวที่เหมาะกับคุณ
             </h2>
-            <p className="text-xs md:text-sm text-indigo-100 mb-8 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs md:text-sm text-indigo-100 mb-6 md:mb-8 max-w-md mx-auto leading-relaxed">
               เชื่อมต่อติวเตอร์คุณภาพ พร้อมระบบชำระเงินความปลอดภัยสูงผ่าน PromptPay
             </p>
 
-            {/* ช่องค้นหา */}
             <div className="relative max-w-lg mx-auto">
               <input
                 type="text"
-                placeholder="ค้นหาตามวิชา, ชื่อติวเตอร์ หรือชื่อเล่น..."
-                className="w-full pl-12 pr-4 py-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-white/30 transition placeholder:text-slate-400"
+                placeholder="ค้นหาตามวิชา, ชื่อติวเตอร์..."
+                className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 bg-white/95 backdrop-blur-md rounded-xl md:rounded-2xl shadow-xl text-xs md:text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-white/30 transition placeholder:text-slate-400"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">🔍</span>
+              <span className="absolute left-3.5 md:left-4 top-1/2 -translate-y-1/2 text-slate-400 text-base md:text-lg">🔍</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Tutor Grid Section */}
-      <section className="max-w-6xl mx-auto px-6 pb-20 pt-4">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="font-extrabold text-lg text-slate-800">
+      {/* Tutor Grid Section Responsive */}
+      <section className="max-w-6xl mx-auto px-4 md:px-6 pb-16 pt-2 md:pt-4">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <h3 className="font-extrabold text-base md:text-lg text-slate-800">
             ติวเตอร์พร้อมสอน ({filteredTutors.length})
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredTutors.map((tutor) => {
             const { avg, count } = getTutorRatingInfo(tutor.email)
             return (
-              <div key={tutor.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-lg shadow-slate-200/50 flex flex-col justify-between hover:-translate-y-1.5 transition-all duration-300">
+              <div key={tutor.id} className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300">
                 <div>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-lg shadow-sm">
+                      <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-50 border border-indigo-100 rounded-xl md:rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-base md:text-lg shadow-sm flex-shrink-0">
                         {tutor.name.charAt(0)}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-base text-slate-800 leading-tight">{tutor.name}</h4>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm md:text-base text-slate-800 leading-tight truncate">{tutor.name}</h4>
                         {tutor.nickname && (
-                          <span className="text-xs font-medium text-slate-400 block mt-0.5">({tutor.nickname})</span>
+                          <span className="text-[11px] md:text-xs font-medium text-slate-400 block mt-0.5 truncate">({tutor.nickname})</span>
                         )}
                       </div>
                     </div>
-                    <span className="bg-indigo-50 text-indigo-600 text-[11px] font-extrabold px-3 py-1 rounded-full border border-indigo-100/50">
+                    <span className="bg-indigo-50 text-indigo-600 text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100/50 flex-shrink-0">
                       {tutor.subject}
                     </span>
                   </div>
 
-                  {/* แถบดาวและคะแนนรีวิว */}
-                  <div className="flex items-center justify-between bg-amber-50/60 border border-amber-100/80 px-3 py-2 rounded-2xl mb-4">
+                  <div className="flex items-center justify-between bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 md:py-2 rounded-xl md:rounded-2xl mb-3 md:mb-4">
                     <div className="flex items-center gap-1.5">
                       <span className="text-amber-500 font-bold text-xs">⭐ {count > 0 ? avg : 'ใหม่'}</span>
-                      <span className="text-[11px] text-slate-400 font-medium">({count} รีวิว)</span>
+                      <span className="text-[10px] md:text-[11px] text-slate-400 font-medium">({count} รีวิว)</span>
                     </div>
                     <button
                       onClick={() => setSelectedTutorForReview(tutor)}
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                     >
-                      💬 ดูรีวิว / ให้ดาว
+                      💬 ดูรีวิว
                     </button>
                   </div>
 
-                  <p className="text-slate-500 text-xs leading-relaxed mb-6 line-clamp-3 bg-slate-50 p-3 rounded-2xl border border-slate-100/80">
+                  <p className="text-slate-500 text-xs leading-relaxed mb-4 md:mb-6 line-clamp-3 bg-slate-50 p-3 rounded-xl md:rounded-2xl border border-slate-100/80">
                     {tutor.bio}
                   </p>
                 </div>
 
-                {/* ปุ่มแชท และ ปุ่มจองเรียน/สแกนจ่าย */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="pt-3 md:pt-4 border-t border-slate-100 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
-                    <span className="text-lg font-black text-emerald-600">{tutor.price} <span className="text-xs font-medium text-slate-400">บาท/ชม.</span></span>
+                    <span className="text-[9px] md:text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
+                    <span className="text-base md:text-lg font-black text-emerald-600">{tutor.price} <span className="text-[10px] md:text-xs font-medium text-slate-400">฿/ชม.</span></span>
                   </div>
                   <div className="flex gap-1.5">
                     <Link 
                       href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl transition"
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-2.5 md:px-3 py-2 rounded-xl transition"
                     >
                       แชท
                     </Link>
                     <Link 
                       href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 md:px-3.5 py-2 rounded-xl transition shadow-md shadow-indigo-600/20"
                     >
-                      จองเรียน / สแกนจ่าย
+                      จองเรียน
                     </Link>
                   </div>
                 </div>
@@ -358,41 +353,38 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Modal ดูรีวิวและเขียนคอมเมนต์ */}
+      {/* Modal ดูรีวิวและเขียนคอมเมนต์ Responsive */}
       {selectedTutorForReview && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 relative max-h-[85vh] overflow-y-auto">
-            {/* Modal Header */}
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 max-w-lg w-full shadow-2xl space-y-4 relative max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3 sticky top-0 bg-white z-10">
               <div>
-                <h3 className="font-extrabold text-base text-slate-800">
+                <h3 className="font-extrabold text-sm md:text-base text-slate-800">
                   ⭐ รีวิวของ {selectedTutorForReview.name}
                 </h3>
-                <p className="text-xs text-slate-400">วิชา {selectedTutorForReview.subject}</p>
+                <p className="text-[11px] text-slate-400">วิชา {selectedTutorForReview.subject}</p>
               </div>
               <button
                 onClick={() => setSelectedTutorForReview(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm transition"
+                className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-xs md:text-sm transition"
               >
                 ✕
               </button>
             </div>
 
-            {/* ฟอร์มเขียนรีวิว (สำหรับนักเรียน) */}
             {isStudent && (
-              <form onSubmit={handleAddReview} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <form onSubmit={handleAddReview} className="bg-slate-50 p-3.5 md:p-4 rounded-xl md:rounded-2xl border border-slate-200/80 space-y-2.5">
                 <h4 className="text-xs font-bold text-slate-700">✍️ เขียนรีวิว / ให้ดาวติวเตอร์คนนี้</h4>
                 
-                {/* เลือกคะแนนดาว 1-5 */}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 font-medium">ให้คะแนน:</span>
+                  <span className="text-xs text-slate-500 font-medium">คะแนน:</span>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         type="button"
                         key={star}
                         onClick={() => setNewRating(star)}
-                        className={`text-lg transition-transform ${star <= newRating ? 'scale-110' : 'opacity-30'}`}
+                        className={`text-base md:text-lg transition-transform ${star <= newRating ? 'scale-110' : 'opacity-30'}`}
                       >
                         ⭐
                       </button>
@@ -404,8 +396,8 @@ export default function Home() {
                 <textarea
                   required
                   rows={2}
-                  placeholder="พิมพ์ความคิดเห็นเกี่ยวกับการสอนของติวเตอร์..."
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="พิมพ์ความคิดเห็นของคุณ..."
+                  className="w-full p-2.5 md:p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                 />
@@ -420,22 +412,21 @@ export default function Home() {
               </form>
             )}
 
-            {/* รายการรีวิวทั้งหมด */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <h4 className="text-xs font-bold text-slate-700">💬 ความคิดเห็นทั้งหมด</h4>
               {(() => {
                 const tutorReviews = reviews.filter((r) => r.tutor_email === selectedTutorForReview.email)
                 if (tutorReviews.length === 0) {
-                  return <p className="text-center text-xs text-slate-400 py-6">ยังไม่มีรีวิวสำหรับติวเตอร์คนนี้</p>
+                  return <p className="text-center text-xs text-slate-400 py-4">ยังไม่มีรีวิวสำหรับติวเตอร์คนนี้</p>
                 }
                 return tutorReviews.map((r) => (
-                  <div key={r.id} className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs space-y-1">
+                  <div key={r.id} className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 text-xs space-y-1">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800">{r.student_email}</span>
-                      <span className="text-amber-500 font-bold">{'⭐'.repeat(r.rating)}</span>
+                      <span className="font-bold text-slate-800 truncate max-w-[180px]">{r.student_email}</span>
+                      <span className="text-amber-500 font-bold text-[11px]">{'⭐'.repeat(r.rating)}</span>
                     </div>
                     <p className="text-slate-600 leading-relaxed">{r.comment}</p>
-                    <span className="text-[10px] text-slate-400 block pt-1">
+                    <span className="text-[9px] text-slate-400 block pt-0.5">
                       {new Date(r.created_at).toLocaleDateString('th-TH')}
                     </span>
                   </div>
