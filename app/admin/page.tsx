@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 interface Tutor {
@@ -38,45 +37,89 @@ interface Payment {
 }
 
 export default function AdminDashboard() {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [usernameInput, setUsernameInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
+
+  // Dashboard Data State
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
-  const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students'>('payments')
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students' | 'settings'>('payments')
+  const [loading, setLoading] = useState(false)
 
+  // System Settings State
+  const [promptPayNumber, setPromptPayNumber] = useState('0812345678')
+  const [commissionRate, setCommissionRate] = useState(15)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  // ตรวจสอบ Login ล่วงหน้าจาก Session Storage
   useEffect(() => {
-    fetchAdminData()
+    const sessionAdmin = sessionStorage.getItem('is_admin_logged_in')
+    if (sessionAdmin === 'true') {
+      setIsAuthenticated(true)
+      fetchAdminData()
+    }
   }, [])
 
-  async function fetchAdminData() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      router.push('/login')
-      return
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (usernameInput === 'admin' && passwordInput === 'TT546897!') {
+      setIsAuthenticated(true)
+      sessionStorage.setItem('is_admin_logged_in', 'true')
+      fetchAdminData()
+    } else {
+      alert('รหัสผ่าน หรือ Username แอดมินไม่ถูกต้อง!')
     }
+  }
 
-    // ดึงข้อมูลการชำระเงิน ติวเตอร์ และนักเรียน
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem('is_admin_logged_in')
+    setIsAuthenticated(false)
+  }
+
+  async function fetchAdminData() {
+    setLoading(true)
     const { data: payData } = await supabase.from('payments').select('*').order('created_at', { ascending: false })
     const { data: tutorData } = await supabase.from('tutors').select('*')
     const { data: studentData } = await supabase.from('students').select('*')
+    const { data: settingsData } = await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle()
 
     setPayments(payData || [])
     setTutors(tutorData || [])
     setStudents(studentData || [])
+    if (settingsData) {
+      setPromptPayNumber(settingsData.promptpay_number || '0812345678')
+      setCommissionRate(settingsData.commission_rate || 15)
+    }
     setLoading(false)
   }
 
-  // ฟังก์ชันกดยืนยันว่าโอนเงินให้ติวเตอร์แล้ว
+  // ฟังก์ชันบันทึกการตั้งค่าพร้อมเพย์และ % คอมมิชชัน
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingSettings(true)
+
+    const { error } = await supabase
+      .from('platform_settings')
+      .upsert({ id: 1, promptpay_number: promptPayNumber, commission_rate: Number(commissionRate) })
+
+    if (error) {
+      alert('บันทึกไม่สำเร็จ: ' + error.message)
+    } else {
+      alert('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!')
+    }
+    setSavingSettings(false)
+  }
+
+  // ยืนยันโอนเงินต่อให้ติวเตอร์
   const handleTransferToTutor = async (paymentId: string) => {
     if (!confirm('ยืนยันว่าคุณได้โอนเงินส่วนของติวเตอร์เข้าบัญชีเรียบร้อยแล้ว?')) return
 
     const { error } = await supabase
       .from('payments')
-      .update({
-        paid_to_tutor: true,
-        paid_at: new Date().toISOString()
-      })
+      .update({ paid_to_tutor: true, paid_at: new Date().toISOString() })
       .eq('id', paymentId)
 
     if (error) {
@@ -87,18 +130,77 @@ export default function AdminDashboard() {
     }
   }
 
-  // คำนวณรายได้รวมของแพลตฟอร์ม
+  // ส่งออกรายงาน CSV สรุปรายเดือน
+  const exportMonthlyCSV = () => {
+    if (payments.length === 0) return alert('ไม่มีข้อมูลรายการโอนเงิน')
+
+    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์\n"
+    payments.forEach((p) => {
+      const date = new Date(p.created_at).toLocaleString('th-TH')
+      const status = p.paid_to_tutor ? "โอนให้ติวเตอร์แล้ว" : "รอดำเนินการ"
+      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${p.commission_amount},${p.tutor_amount},"${status}"\n`
+    })
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Monthly_Summary_${new Date().toISOString().slice(0, 7)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // ฟอร์มเข้าสู่ระบบแอดมิน
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+        <form onSubmit={handleAdminLogin} className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full space-y-5">
+          <div className="text-center">
+            <span className="text-4xl">👑</span>
+            <h1 className="text-xl font-extrabold text-slate-800 mt-2">เข้าสู่ระบบแอดมิน</h1>
+            <p className="text-xs text-slate-400">เข้าสู่แผงควบคุมเจ้าของแพลตฟอร์ม</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Username</label>
+            <input
+              type="text" required
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Password</label>
+            <input
+              type="password" required
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/30 transition"
+          >
+            เข้าสู่ระบบ
+          </button>
+
+          <div className="text-center">
+            <Link href="/" className="text-xs text-slate-400 hover:underline">← กลับหน้าหลัก</Link>
+          </div>
+        </form>
+      </main>
+    )
+  }
+
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
   const totalCommission = payments.reduce((sum, p) => sum + Number(p.commission_amount || 0), 0)
   const pendingPayouts = payments.filter((p) => !p.paid_to_tutor)
 
-  if (loading) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">กำลังโหลดข้อมูลแอดมิน...</div>
-  }
-
   return (
     <main className="min-h-screen bg-slate-100/70 text-slate-800">
-      {/* Top Header */}
       <header className="bg-slate-900 text-white px-6 py-5 shadow-lg">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div>
@@ -107,9 +209,14 @@ export default function AdminDashboard() {
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">จัดการธุรกรรม ติวเตอร์ และนักเรียนในระบบ</p>
           </div>
-          <Link href="/" className="text-xs font-semibold bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition border border-slate-700">
-            ← กลับหน้าหลัก
-          </Link>
+          <div className="flex gap-2">
+            <button onClick={exportMonthlyCSV} className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition flex items-center gap-1 shadow-md">
+              <span>📥</span> โหลดสรุปรายเดือน (CSV)
+            </button>
+            <button onClick={handleAdminLogout} className="text-xs font-bold bg-rose-600/80 hover:bg-rose-600 text-white px-3.5 py-2 rounded-xl transition">
+              ออกจากระบบแอดมิน
+            </button>
+          </div>
         </div>
       </header>
 
@@ -122,7 +229,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80">
-            <span className="text-xs text-slate-400 font-medium block mb-1">✨ รายได้ค่าคอมมิชชันนายหน้า</span>
+            <span className="text-xs text-slate-400 font-medium block mb-1">✨ รายได้ค่าคอมมิชชันนายหน้า ({commissionRate}%)</span>
             <span className="text-2xl font-black text-emerald-600">{totalCommission.toLocaleString()} <span className="text-xs text-slate-400 font-normal">บาท</span></span>
           </div>
 
@@ -137,9 +244,7 @@ export default function AdminDashboard() {
           <button
             onClick={() => setActiveTab('payments')}
             className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === 'payments'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+              activeTab === 'payments' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
             <span>💳</span> รายการโอนเงิน ({pendingPayouts.length > 0 && <span className="bg-rose-500 text-white px-1.5 py-0.5 rounded-full text-[10px]">{pendingPayouts.length}</span>})
@@ -148,9 +253,7 @@ export default function AdminDashboard() {
           <button
             onClick={() => setActiveTab('tutors')}
             className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === 'tutors'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+              activeTab === 'tutors' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
             <span>👨‍🏫</span> รายชื่อติวเตอร์ ({tutors.length})
@@ -159,16 +262,23 @@ export default function AdminDashboard() {
           <button
             onClick={() => setActiveTab('students')}
             className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === 'students'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+              activeTab === 'students' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
             <span>🎓</span> รายชื่อนักเรียน ({students.length})
           </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${
+              activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white text-slate-600 border border-slate-200'
+            }`}
+          >
+            <span>⚙️</span> ตั้งค่าระบบการเงิน
+          </button>
         </div>
 
-        {/* Tab 1: รายการโอนเงินและการโอนต่อให้ติวเตอร์ */}
+        {/* Tab Payments */}
         {activeTab === 'payments' && (
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="p-5 border-b border-slate-100 bg-slate-50/50">
@@ -237,11 +347,11 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 2: ข้อมูลติวเตอร์ */}
+        {/* Tab Tutors */}
         {activeTab === 'tutors' && (
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="font-bold text-sm text-slate-800">รายชื่อติวเตอร์ทั้งหมดในแพลตฟอร์ม</h2>
+              <h2 className="font-bold text-sm text-slate-800">รายชื่อติวเตอร์ทั้งหมด</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
@@ -264,11 +374,7 @@ export default function AdminDashboard() {
                       <td className="p-4 font-semibold text-indigo-600">{t.subject}</td>
                       <td className="p-4 font-bold text-emerald-600">{t.price} ฿</td>
                       <td className="p-4 text-[11px]">
-                        {t.bank_account_no ? (
-                          `${t.bank_name} | ${t.bank_account_no} (${t.bank_account_name})`
-                        ) : (
-                          <span className="text-slate-400 italic">ยังไม่กรอก</span>
-                        )}
+                        {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no} (${t.bank_account_name})` : <span className="text-slate-400 italic">ยังไม่กรอก</span>}
                       </td>
                     </tr>
                   ))}
@@ -278,11 +384,11 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 3: ข้อมูลนักเรียน */}
+        {/* Tab Students */}
         {activeTab === 'students' && (
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="font-bold text-sm text-slate-800">รายชื่อนักเรียนทั้งหมดในแพลตฟอร์ม</h2>
+              <h2 className="font-bold text-sm text-slate-800">รายชื่อนักเรียนทั้งหมด</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
@@ -308,6 +414,43 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Tab Settings */}
+        {activeTab === 'settings' && (
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200/80 max-w-lg mx-auto">
+            <h2 className="text-base font-bold text-slate-800 mb-1">⚙️ ตั้งค่าระบบการเงินแพลตฟอร์ม</h2>
+            <p className="text-xs text-slate-400 mb-6">ระบุเบอร์พร้อมเพย์รับเงิน และ % คอมมิชชันที่หักจากติวเตอร์</p>
+
+            <form onSubmit={handleSaveSettings} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">เบอร์พร้อมเพย์ / เลขผู้เสียภาษี แพลตฟอร์ม</label>
+                <input
+                  type="text" required
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="เช่น 0812345678"
+                  value={promptPayNumber} onChange={(e) => setPromptPayNumber(e.target.value)}
+                />
+                <p className="text-[10px] text-slate-400 mt-1">* ระบบจะนำเบอร์นี้ไปเจน PromptPay QR Code ให้นักเรียนสแกนจ่ายอัตโนมัติ</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">อัตราค่าคอมมิชชันนายหน้า (%)</label>
+                <input
+                  type="number" required min="0" max="100"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={commissionRate} onChange={(e) => setCommissionRate(Number(e.target.value))}
+                />
+              </div>
+
+              <button
+                type="submit" disabled={savingSettings}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/20 transition disabled:bg-slate-300"
+              >
+                {savingSettings ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+              </button>
+            </form>
           </div>
         )}
       </div>
