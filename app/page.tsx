@@ -124,6 +124,14 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* ปุ่มระบบแอดมินสำหรับเจ้าของแพลตฟอร์ม */}
+            <Link 
+              href="/admin" 
+              className="px-3.5 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md shadow-slate-900/10 transition flex items-center gap-1"
+            >
+              <span>👑</span> แอดมิน
+            </Link>
+
             {/* ซ่อนปุ่มสมัครติวเตอร์ถ้านักเรียนล็อกอินอยู่ */}
             {isTutor ? (
               <Link href="/register" className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/20 transition">
