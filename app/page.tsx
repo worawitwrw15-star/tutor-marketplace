@@ -424,7 +424,8 @@ export default function Home() {
               <span>🎧</span> แอดมิน
             </Link>
 
-            {isTutor ? (
+            {/* แสดงปุ่มตารางสอน และ แก้ไขประกาศ เฉพาะผู้ที่เป็นติวเตอร์เท่านั้น */}
+            {isTutor && (
               <>
                 <Link 
                   href="/schedule" 
@@ -436,13 +437,6 @@ export default function Home() {
                   📝 แก้ไขประกาศ
                 </Link>
               </>
-            ) : (
-              <Link 
-                href="/register" 
-                className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex items-center gap-1 flex-shrink-0"
-              >
-                <span>👨‍🏫</span> สมัครเป็นติวเตอร์
-              </Link>
             )}
 
             <Link 
