@@ -350,6 +350,7 @@ export default function Home() {
             const { avg, count, numericAvg } = getTutorRatingInfo(tutor.email)
             const displayPrice = tutor.price < 50 ? 50 : tutor.price
             const isPopular = count >= 3 || numericAvg >= 4.5
+            const isOwnProfile = tutor.email === userEmail
 
             return (
               <div key={tutor.id} className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
@@ -419,12 +420,23 @@ export default function Home() {
                     >
                       แชท
                     </Link>
-                    <Link 
-                      href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 md:px-3.5 py-2 rounded-xl transition shadow-md shadow-indigo-600/20"
-                    >
-                      จองเรียน
-                    </Link>
+                    
+                    {/* สลับการแสดงผลระหว่างปุ่ม "ตารางสอน" (ถ้าเป็นโปรไฟล์ตัวเอง) และ "จองเรียน" (สำหรับนักเรียน) */}
+                    {isOwnProfile ? (
+                      <Link 
+                        href="/schedule" 
+                        className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3 md:px-3.5 py-2 rounded-xl transition shadow-md shadow-violet-600/20"
+                      >
+                        ตารางสอน
+                      </Link>
+                    ) : (
+                      <Link 
+                        href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 md:px-3.5 py-2 rounded-xl transition shadow-md shadow-indigo-600/20"
+                      >
+                        จองเรียน
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
