@@ -14,6 +14,7 @@ interface Tutor {
   email?: string
   avatar_url?: string
   is_verified?: boolean
+  is_active?: boolean
 }
 
 interface Review {
@@ -37,7 +38,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [isTutor, setIsTutor] = useState(false)
-  const [isStudent, setIsStudent] = useState(false)
   const [hasUnread, setHasUnread] = useState(false)
 
   const [selectedTutorForReview, setSelectedTutorForReview] = useState<Tutor | null>(null)
@@ -85,19 +85,12 @@ export default function Home() {
     if (error) console.error('Error fetching tutors:', error)
     else {
       setTutors(tutorData || [])
+      // ตรวจสอบว่าผู้ใช้เคยลงทะเบียนเป็นติวเตอร์ไว้แล้วหรือไม่ (คงบทบาทไว้ตลอด)
       setIsTutor((tutorData || []).some((t) => t.email === email))
     }
 
     const { data: reviewData } = await supabase.from('reviews').select('*').order('created_at', { ascending: false })
     setReviews(reviewData || [])
-
-    const { data: studentData } = await supabase
-      .from('students')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle()
-
-    setIsStudent(!!studentData)
 
     const { data: recentMsg } = await supabase
       .from('messages')
@@ -170,8 +163,11 @@ export default function Home() {
     )
   }
 
+  // กรองติวเตอร์: ซ่อนรายการที่ปิดการใช้งาน (is_active === false)
   const filteredTutors = tutors
     .filter((t) => {
+      if (t.is_active === false) return false
+
       const matchSearch =
         t.subject.toLowerCase().includes(search.toLowerCase()) ||
         t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -219,17 +215,14 @@ export default function Home() {
                 <p className="text-[10px] md:text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5 truncate max-w-[180px] sm:max-w-xs">
                   <span className="truncate">{userEmail}</span>
                   <span className="inline-block w-1 h-1 rounded-full bg-slate-300 flex-shrink-0"></span>
+                  {/* กำหนดให้อ่านบทบาทเพียง 2 ประเภท: ติวเตอร์ หรือ นักเรียน */}
                   {isTutor ? (
                     <span className="text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100/60 flex-shrink-0">
                       👨‍🏫 ติวเตอร์
                     </span>
-                  ) : isStudent ? (
+                  ) : (
                     <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/60 flex-shrink-0">
                       🎓 นักเรียน
-                    </span>
-                  ) : (
-                    <span className="text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0">
-                      👤 ผู้ใช้ทั่วไป
                     </span>
                   )}
                 </p>
@@ -252,7 +245,8 @@ export default function Home() {
               <span>🎧</span> แอดมิน
             </Link>
 
-            {isTutor && (
+            {/* ปุ่มนำทางตามบทบาท */}
+            {isTutor ? (
               <>
                 <Link 
                   href="/schedule" 
@@ -264,6 +258,13 @@ export default function Home() {
                   โปรไฟล์ติวเตอร์
                 </Link>
               </>
+            ) : (
+              <Link 
+                href="/register" 
+                className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex items-center gap-1 flex-shrink-0"
+              >
+                <span>👨‍🏫</span> สมัครเป็นติวเตอร์
+              </Link>
             )}
 
             <Link 
@@ -509,7 +510,7 @@ export default function Home() {
               </button>
             </div>
 
-            {isStudent && (
+            {!isTutor && (
               <form onSubmit={handleAddReview} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2.5">
                 <h4 className="text-xs font-bold text-slate-700">✍️ เขียนรีวิว / ให้ดาวติวเตอร์คนนี้</h4>
                 
