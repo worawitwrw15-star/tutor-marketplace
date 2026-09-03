@@ -252,7 +252,7 @@ export default function Home() {
                   📅 ตารางสอน
                 </Link>
                 <Link href="/register" className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex-shrink-0">
-                  โปรไฟล์ติวเตอร์
+                  📝 แก้ไขประกาศ
                 </Link>
               </>
             ) : (
