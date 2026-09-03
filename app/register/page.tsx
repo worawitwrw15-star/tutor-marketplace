@@ -12,6 +12,8 @@ export default function RegisterTutor() {
   const [price, setPrice] = useState('')
   const [bio, setBio] = useState('')
   const [isActive, setIsActive] = useState(true)
+  const [isSuspended, setIsSuspended] = useState(false)
+  
   const [avatarUrl, setAvatarUrl] = useState('')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -25,6 +27,7 @@ export default function RegisterTutor() {
   const [submitting, setSubmitting] = useState(false)
 
   const router = useRouter()
+  const ADMIN_EMAIL = 'system_admin@platform.com'
 
   useEffect(() => {
     checkUserAndFetchTutor()
@@ -55,6 +58,7 @@ export default function RegisterTutor() {
       setPrice(tutor.price ? String(tutor.price) : '')
       setBio(tutor.bio || '')
       setIsActive(tutor.is_active !== false)
+      setIsSuspended(tutor.is_suspended === true)
       setAvatarUrl(tutor.avatar_url || '')
       setBankName(tutor.bank_name || 'พร้อมเพย์')
       setBankAccountNo(tutor.bank_account_no || '')
@@ -74,6 +78,12 @@ export default function RegisterTutor() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isSuspended) {
+      alert('บัญชีของคุณถูกระงับการใช้งาน ไม่สามารถบันทึกข้อมูลได้ กรุณาติดต่อแอดมิน')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -125,6 +135,11 @@ export default function RegisterTutor() {
   }
 
   const handleToggleStatus = async (status: boolean) => {
+    if (isSuspended) {
+      alert('บัญชีของคุณถูกแอดมินระงับการใช้งาน กรุณาติดต่อแอดมินผ่านช่องทางแชท')
+      return
+    }
+
     setIsActive(status)
     setSubmitting(true)
 
@@ -174,43 +189,62 @@ export default function RegisterTutor() {
           <p className="text-xs text-slate-400 font-medium truncate">{email}</p>
         </div>
 
-        {/* ปุ่มสลับสถานะเปิด/ปิด รับสอน */}
-        {isEditMode && (
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
-            <label className="block text-xs font-bold text-slate-700">📌 สถานะการแสดงประกาศสอน</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleToggleStatus(true)}
-                disabled={submitting}
-                className={`py-2.5 px-3 rounded-xl font-bold text-xs transition border flex items-center justify-center gap-1 ${
-                  isActive 
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <span>🟢</span> เปิดรับสอน
-              </button>
-              <button
-                type="button"
-                onClick={() => handleToggleStatus(false)}
-                disabled={submitting}
-                className={`py-2.5 px-3 rounded-xl font-bold text-xs transition border flex items-center justify-center gap-1 ${
-                  !isActive 
-                    ? 'bg-rose-600 text-white border-rose-600 shadow-md' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <span>🔴</span> พักการรับสอน
-              </button>
+        {/* 🚨 กรณีถูกแอดมินระงับการใช้งาน */}
+        {isSuspended ? (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 text-center space-y-3">
+            <span className="text-3xl">🚫</span>
+            <div className="space-y-1">
+              <h3 className="font-black text-sm text-rose-700">บัญชีของคุณถูกระงับการใช้งาน</h3>
+              <p className="text-xs text-rose-600 leading-relaxed">
+                เนื่องจากถูกระงับโดยแอดมิน ระบบจึงปิดการแสดงผลประกาศสอน และไม่สามารถแก้ไขข้อมูลได้ หากต้องการปลดล็อคกรุณาติดต่อแอดมิน
+              </p>
             </div>
-            <p className="text-[10px] text-slate-400 text-center pt-1">
-              {isActive ? 'ประกาศของคุณกำลังแสดงอยู่ในหน้าหลัก' : 'ประกาศสอนถูกซ่อนอยู่ นักเรียนจะไม่เห็นโปรไฟล์ของคุณบนหน้าหลัก'}
-            </p>
+            <Link
+              href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
+              className="inline-block bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition"
+            >
+              💬 ทักแชทติดต่อแอดมิน
+            </Link>
           </div>
+        ) : (
+          /* 🟢 ปุ่มสลับสถานะเปิด/ปิด รับสอนชั่วคราวด้วยตนเอง */
+          isEditMode && (
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+              <label className="block text-xs font-bold text-slate-700">📌 สถานะการแสดงประกาศสอน</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleToggleStatus(true)}
+                  disabled={submitting}
+                  className={`py-2.5 px-3 rounded-xl font-bold text-xs transition border flex items-center justify-center gap-1 ${
+                    isActive 
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>🟢</span> เปิดรับสอน
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleStatus(false)}
+                  disabled={submitting}
+                  className={`py-2.5 px-3 rounded-xl font-bold text-xs transition border flex items-center justify-center gap-1 ${
+                    !isActive 
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-md' 
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>🔴</span> พักการรับสอน
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 text-center pt-1">
+                {isActive ? 'ประกาศของคุณกำลังแสดงอยู่ในหน้าหลัก' : 'ประกาศสอนถูกซ่อนอยู่ นักเรียนจะไม่เห็นโปรไฟล์ของคุณบนหน้าหลัก'}
+              </p>
+            </div>
+          )
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className={`space-y-4 text-xs ${isSuspended ? 'opacity-40 pointer-events-none' : ''}`}>
           
           {/* Avatar Upload */}
           <div className="flex flex-col items-center justify-center space-y-2 bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
@@ -223,7 +257,7 @@ export default function RegisterTutor() {
             </div>
             <label className="cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold px-3.5 py-1.5 rounded-xl transition">
               📷 เลือกรูปโปรไฟล์
-              <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={isSuspended} className="hidden" />
             </label>
           </div>
 
@@ -235,6 +269,7 @@ export default function RegisterTutor() {
               <input
                 type="text"
                 required
+                disabled={isSuspended}
                 className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -245,6 +280,7 @@ export default function RegisterTutor() {
               <label className="block font-semibold text-slate-600 mb-1">ชื่อเล่น (แสดงในระบบแชท)</label>
               <input
                 type="text"
+                disabled={isSuspended}
                 className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
@@ -261,6 +297,7 @@ export default function RegisterTutor() {
                 <input
                   type="text"
                   required
+                  disabled={isSuspended}
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
@@ -272,6 +309,7 @@ export default function RegisterTutor() {
                 <input
                   type="number"
                   required
+                  disabled={isSuspended}
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
@@ -283,6 +321,7 @@ export default function RegisterTutor() {
               <label className="block font-semibold text-slate-600 mb-1">แนะนำตัว / ประวัติการสอน</label>
               <textarea
                 rows={3}
+                disabled={isSuspended}
                 className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
@@ -301,6 +340,7 @@ export default function RegisterTutor() {
               <input
                 type="text"
                 placeholder="เช่น กสิกรไทย, พร้อมเพย์"
+                disabled={isSuspended}
                 className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
@@ -311,6 +351,7 @@ export default function RegisterTutor() {
               <label className="block font-semibold text-slate-700 mb-1">เลขบัญชี / เบอร์พร้อมเพย์</label>
               <input
                 type="text"
+                disabled={isSuspended}
                 className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                 value={bankAccountNo}
                 onChange={(e) => setBankAccountNo(e.target.value)}
@@ -321,6 +362,7 @@ export default function RegisterTutor() {
               <label className="block font-semibold text-slate-700 mb-1">ชื่อบัญชี</label>
               <input
                 type="text"
+                disabled={isSuspended}
                 className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={bankAccountName}
                 onChange={(e) => setBankAccountName(e.target.value)}
@@ -330,7 +372,7 @@ export default function RegisterTutor() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || isSuspended}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-indigo-600/20 transition disabled:bg-slate-300"
           >
             {submitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูลโปรไฟล์'}

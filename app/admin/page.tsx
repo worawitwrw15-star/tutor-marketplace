@@ -15,6 +15,7 @@ interface Tutor {
   bank_account_name?: string
   is_verified?: boolean
   is_active?: boolean
+  is_suspended?: boolean
 }
 
 interface Student {
@@ -172,16 +173,19 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
-  // ฟังก์ชันระงับ / ปลดระงับติวเตอร์
-  const handleToggleSuspendTutor = async (tutorId: string, currentActiveStatus: boolean) => {
-    const nextStatus = !currentActiveStatus
-    const actionText = nextStatus ? 'เปิดใช้งาน' : 'ระงับการใช้งาน'
+  // ฟังก์ชันระงับ / ปลดระงับติวเตอร์ (อัปเดตทั้ง is_suspended และ is_active)
+  const handleToggleSuspendTutor = async (tutorId: string, currentSuspendedStatus: boolean) => {
+    const nextSuspendedState = !currentSuspendedStatus
+    const actionText = nextSuspendedState ? 'ระงับการใช้งาน' : 'ปลดระงับ'
 
     if (!confirm(`คุณต้องการ ${actionText} ติวเตอร์คนนี้ใช่หรือไม่?`)) return
 
     const { error } = await supabase
       .from('tutors')
-      .update({ is_active: nextStatus })
+      .update({ 
+        is_suspended: nextSuspendedState,
+        is_active: !nextSuspendedState
+      })
       .eq('id', tutorId)
 
     if (error) {
@@ -727,9 +731,9 @@ export default function AdminDashboard() {
             {/* แสดงผลมือถือ (Mobile View) */}
             <div className="block md:hidden space-y-2">
               {tutors.map((t) => {
-                const isActive = t.is_active !== false
+                const isSuspended = t.is_suspended === true
                 return (
-                  <div key={t.id} className={`p-4 rounded-2xl border shadow-sm text-xs space-y-2 ${isActive ? 'bg-white border-slate-200' : 'bg-rose-50/60 border-rose-200'}`}>
+                  <div key={t.id} className={`p-4 rounded-2xl border shadow-sm text-xs space-y-2 ${isSuspended ? 'bg-rose-50/60 border-rose-200' : 'bg-white border-slate-200'}`}>
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -757,10 +761,10 @@ export default function AdminDashboard() {
                         {t.is_verified ? 'ยกเลิกการยืนยัน' : '✔ ยืนยันตัวตน'}
                       </button>
                       <button
-                        onClick={() => handleToggleSuspendTutor(t.id, isActive)}
-                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold text-white ${isActive ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                        onClick={() => handleToggleSuspendTutor(t.id, isSuspended)}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold text-white ${isSuspended ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-500 hover:bg-rose-600'}`}
                       >
-                        {isActive ? '🚫 ระงับติวเตอร์' : '✅ ปลดระงับ'}
+                        {isSuspended ? '✅ ปลดระงับ' : '🚫 ระงับติวเตอร์'}
                       </button>
                     </div>
                   </div>
@@ -784,9 +788,9 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {tutors.map((t) => {
-                    const isActive = t.is_active !== false
+                    const isSuspended = t.is_suspended === true
                     return (
-                      <tr key={t.id} className={isActive ? 'hover:bg-slate-50/50' : 'bg-rose-50/40'}>
+                      <tr key={t.id} className={isSuspended ? 'bg-rose-50/40' : 'hover:bg-slate-50/50'}>
                         <td className="p-4 font-bold">
                           {t.name} {t.nickname && `(${t.nickname})`}
                           {t.is_verified && <span className="ml-1 text-emerald-500 font-bold" title="ยืนยันตัวตนแล้ว">✔</span>}
@@ -798,13 +802,13 @@ export default function AdminDashboard() {
                           {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no}` : 'ยังไม่กรอก'}
                         </td>
                         <td className="p-4">
-                          {isActive ? (
-                            <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                              🟢 ปกติ
-                            </span>
-                          ) : (
+                          {isSuspended ? (
                             <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200">
                               🔴 ถูกระงับ
+                            </span>
+                          ) : (
+                            <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                              🟢 ปกติ
                             </span>
                           )}
                         </td>
@@ -816,12 +820,12 @@ export default function AdminDashboard() {
                             {t.is_verified ? 'ยกเลิกยืนยัน' : '✔ ยืนยัน'}
                           </button>
                           <button
-                            onClick={() => handleToggleSuspendTutor(t.id, isActive)}
+                            onClick={() => handleToggleSuspendTutor(t.id, isSuspended)}
                             className={`text-[10px] font-bold px-3 py-1.5 rounded-lg text-white transition ${
-                              isActive ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-600 hover:bg-emerald-700'
+                              isSuspended ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-500 hover:bg-rose-600'
                             }`}
                           >
-                            {isActive ? '🚫 ระงับ' : '✅ ปลดระงับ'}
+                            {isSuspended ? '✅ ปลดระงับ' : '🚫 ระงับ'}
                           </button>
                         </td>
                       </tr>
