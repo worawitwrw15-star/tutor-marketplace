@@ -270,7 +270,7 @@ export default function AdminDashboard() {
       fetchAdminData()
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
-    } finally {
+    } flex {
       setSubmittingPayout(false)
     }
   }
@@ -294,11 +294,13 @@ export default function AdminDashboard() {
   const exportMonthlyCSV = () => {
     if (payments.length === 0) return alert('ไม่มีข้อมูลรายการโอนเงิน')
 
-    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์,สลิปนักเรียน,สลิปโอนต่อติวเตอร์\n"
+    let csvContent = "\uFEFFวันที่/เวลา,นักเรียน,ติวเตอร์,ยอดรวม (บาท),คอมมิชชัน (%),ค่าคอมมิชชัน (บาท),ยอดติวเตอร์ได้รับ (บาท),สถานะโอนให้ติวเตอร์,สลิปนักเรียน,สลิปโอนต่อติวเตอร์\n"
     payments.forEach((p) => {
       const date = new Date(p.created_at).toLocaleString('th-TH')
       const status = p.paid_to_tutor ? "โอนให้ติวเตอร์แล้ว" : "รอดำเนินการ"
-      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${p.commission_amount},${p.tutor_amount},"${status}","${p.slip_url || '-'}","${p.tutor_payout_slip_url || '-'}"\n`
+      const commAmount = p.commission_amount ?? (p.amount - (p.tutor_amount ?? p.amount))
+      const commPercent = p.amount > 0 ? ((commAmount / p.amount) * 100).toFixed(0) : 0
+      csvContent += `"${date}","${p.student_email}","${p.tutor_email}",${p.amount},${commPercent}%,${commAmount},${p.tutor_amount},"${status}","${p.slip_url || '-'}","${p.tutor_payout_slip_url || '-'}"\n`
     })
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -355,7 +357,10 @@ export default function AdminDashboard() {
   }
 
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-  const totalCommission = payments.reduce((sum, p) => sum + Number(p.commission_amount || 0), 0)
+  const totalCommission = payments.reduce((sum, p) => {
+    const comm = p.commission_amount ?? (p.amount - (p.tutor_amount ?? p.amount))
+    return sum + Number(comm || 0)
+  }, 0)
   const pendingPayouts = payments.filter((p) => !p.paid_to_tutor)
 
   const filteredChatMessages = chatMessages.filter(
@@ -394,7 +399,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-            <span className="text-[11px] text-slate-400 font-medium block">✨ ค่าคอมมิชชัน ({commissionRate}%)</span>
+            <span className="text-[11px] text-slate-400 font-medium block">✨ ค่าคอมมิชชันรวม</span>
             <span className="text-lg md:text-2xl font-black text-emerald-600">{totalCommission.toLocaleString()} <span className="text-xs font-normal text-slate-400">บาท</span></span>
           </div>
 
@@ -455,9 +460,13 @@ export default function AdminDashboard() {
         {/* Tab 1: Payments */}
         {activeTab === 'payments' && (
           <div className="space-y-3">
+            {/* แสดงผลมือถือ (Mobile View) */}
             <div className="block md:hidden space-y-3">
               {payments.map((p) => {
                 const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
+                const commAmount = p.commission_amount ?? (p.amount - (p.tutor_amount ?? p.amount))
+                const commPercent = p.amount > 0 ? ((commAmount / p.amount) * 100).toFixed(0) : 0
+
                 return (
                   <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-2">
                     <div className="flex justify-between items-center border-b pb-2">
@@ -471,7 +480,7 @@ export default function AdminDashboard() {
                           onClick={() => setTransferModalPayment(p)}
                           className="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg"
                         >
-                          โอนต่อติวเตอร์
+                          โอนต่อ
                         </button>
                       )}
                     </div>
@@ -489,8 +498,8 @@ export default function AdminDashboard() {
 
                     <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <div>
-                        <span className="text-[10px] text-slate-400 block">ยอดรวม / ติวเตอร์ได้</span>
-                        <span className="font-bold text-slate-800">{p.amount}฿</span> → <span className="font-bold text-indigo-600">{p.tutor_amount}฿</span>
+                        <span className="text-[10px] text-slate-400 block">ยอดรวม / คอมมิชชัน / ติวเตอร์ได้</span>
+                        <span className="font-bold text-slate-800">{p.amount}฿</span> → <span className="font-bold text-emerald-600">{commPercent}% ({commAmount}฿)</span> → <span className="font-bold text-indigo-600">{p.tutor_amount}฿</span>
                       </div>
                       {p.slip_url && (
                         <button
@@ -518,6 +527,7 @@ export default function AdminDashboard() {
               })}
             </div>
 
+            {/* แสดงผลคอมพิวเตอร์ (Desktop View) */}
             <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
@@ -527,6 +537,7 @@ export default function AdminDashboard() {
                     <th className="p-4">สลิป</th>
                     <th className="p-4">ติวเตอร์</th>
                     <th className="p-4">ยอดรวม</th>
+                    <th className="p-4 text-emerald-600">คอมมิชชัน (%)</th>
                     <th className="p-4">ติวเตอร์ได้รับ</th>
                     <th className="p-4">บัญชี</th>
                     <th className="p-4 text-center">จัดการ</th>
@@ -535,6 +546,9 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-slate-100">
                   {payments.map((p) => {
                     const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
+                    const commAmount = p.commission_amount ?? (p.amount - (p.tutor_amount ?? p.amount))
+                    const commPercent = p.amount > 0 ? ((commAmount / p.amount) * 100).toFixed(0) : 0
+
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50">
                         <td className="p-4 text-slate-400">{new Date(p.created_at).toLocaleDateString('th-TH')}</td>
@@ -551,9 +565,12 @@ export default function AdminDashboard() {
                         </td>
                         <td className="p-4 font-semibold">{p.tutor_email}</td>
                         <td className="p-4 font-bold">{p.amount}฿</td>
+                        <td className="p-4 font-black text-emerald-600 bg-emerald-50/50 rounded-lg">
+                          {commPercent}% ({commAmount}฿)
+                        </td>
                         <td className="p-4 font-bold text-indigo-600">{p.tutor_amount}฿</td>
                         <td className="p-4 text-[10px]">
-                          {tutorInfo?.bank_account_no ? `${tutorInfo.bank_name} ${tutorInfo.bank_account_no}` : '-'}
+                          {tutorInfo?.bank_account_no ? `${tutorInfo.bank_name} ${tutorInfo.bank_account_no}` : 'กรุงไทย 9847557586'}
                         </td>
                         <td className="p-4 text-center">
                           {p.paid_to_tutor ? (
@@ -561,7 +578,7 @@ export default function AdminDashboard() {
                           ) : (
                             <button
                               onClick={() => setTransferModalPayment(p)}
-                              className="bg-indigo-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-sm transition"
                             >
                               โอนต่อ
                             </button>
