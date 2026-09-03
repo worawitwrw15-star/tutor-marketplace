@@ -85,7 +85,6 @@ export default function Home() {
     if (error) console.error('Error fetching tutors:', error)
     else {
       setTutors(tutorData || [])
-      // ตรวจสอบว่าผู้ใช้เคยลงทะเบียนเป็นติวเตอร์ไว้แล้วหรือไม่ (คงบทบาทไว้ตลอด)
       setIsTutor((tutorData || []).some((t) => t.email === email))
     }
 
@@ -163,7 +162,7 @@ export default function Home() {
     )
   }
 
-  // กรองติวเตอร์: ซ่อนรายการที่ปิดการใช้งาน (is_active === false)
+  // ซ่อนการ์ดติวเตอร์หากตั้งค่า is_active เป็น false
   const filteredTutors = tutors
     .filter((t) => {
       if (t.is_active === false) return false
@@ -215,7 +214,6 @@ export default function Home() {
                 <p className="text-[10px] md:text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5 truncate max-w-[180px] sm:max-w-xs">
                   <span className="truncate">{userEmail}</span>
                   <span className="inline-block w-1 h-1 rounded-full bg-slate-300 flex-shrink-0"></span>
-                  {/* กำหนดให้อ่านบทบาทเพียง 2 ประเภท: ติวเตอร์ หรือ นักเรียน */}
                   {isTutor ? (
                     <span className="text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100/60 flex-shrink-0">
                       👨‍🏫 ติวเตอร์
@@ -245,7 +243,6 @@ export default function Home() {
               <span>🎧</span> แอดมิน
             </Link>
 
-            {/* ปุ่มนำทางตามบทบาท */}
             {isTutor ? (
               <>
                 <Link 
