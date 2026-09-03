@@ -12,6 +12,13 @@ export default function AdminDashboard() {
   const [settings, setSettings] = useState<any>({ promptpay_number: '', commission_rate: 15 })
   const [activeTab, setActiveTab] = useState<'payments' | 'messages' | 'tutors' | 'students' | 'settings'>('payments')
   const [loading, setLoading] = useState(true)
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false)
+
+  // ฟอร์มเข้าสู่ระบบแอดมิน
+  const [adminUsername, setAdminUsername] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const [chatUser, setChatUser] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
@@ -20,16 +27,31 @@ export default function AdminDashboard() {
   const ADMIN_EMAIL = 'system_admin@platform.com'
 
   useEffect(() => {
-    fetchAdminData()
+    checkAdminAccess()
   }, [])
 
-  async function fetchAdminData() {
+  async function checkAdminAccess() {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session || session.user.email !== ADMIN_EMAIL) {
-      router.push('/')
+    
+    // หากล็อกอินผ่าน Supabase Auth ด้วยอีเมลระบบแอดมินอยู่แล้ว
+    if (session && session.user.email === ADMIN_EMAIL) {
+      setIsAdminAuthenticated(true)
+      fetchAdminData()
       return
     }
 
+    // เช็กจาก SessionStorage เผื่อเคยใส่รหัส admin สำเร็จไว้แล้ว
+    const isPass = sessionStorage.getItem('admin_pass_login')
+    if (isPass === 'true') {
+      setIsAdminAuthenticated(true)
+      fetchAdminData()
+    } else {
+      setLoading(false)
+    }
+  }
+
+  async function fetchAdminData() {
+    setLoading(true)
     const { data: payData } = await supabase.from('payments').select('*').order('created_at', { ascending: false })
     const { data: tutData } = await supabase.from('tutors').select('*')
     const { data: stuData } = await supabase.from('students').select('*')
@@ -42,6 +64,25 @@ export default function AdminDashboard() {
     setMessages(msgData || [])
     if (setDa) setSettings(setDa)
     setLoading(false)
+  }
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    // ตรวจสอบรหัสแอดมินตามที่กำหนดไว้
+    if (adminUsername === 'admin' && adminPassword === 'TT546897!') {
+      sessionStorage.setItem('admin_pass_login', 'true')
+      setIsAdminAuthenticated(true)
+      setLoginError('')
+      fetchAdminData()
+    } else {
+      setLoginError('ชื่อผู้ใช้หรือรหัสผ่านแอดมินไม่ถูกต้อง!')
+    }
+  }
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem('admin_pass_login')
+    setIsAdminAuthenticated(false)
+    router.push('/')
   }
 
   const handleUpdateStatus = async (id: string, status: string) => {
@@ -97,6 +138,65 @@ export default function AdminDashboard() {
     document.body.removeChild(link)
   }
 
+  // แสดงหน้าฟอร์มล็อกอินแอดมิน หากยังไม่ได้ยืนยันตัวตน
+  if (!isAdminAuthenticated) {
+    return (
+      <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-2xl max-w-md w-full space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-black text-white">👑 เข้าสู่ระบบแอดมิน</h1>
+            <p className="text-xs text-slate-400">กรุณากรอกสิทธิ์ผู้ดูแลระบบเพื่อเข้าใช้งาน</p>
+          </div>
+
+          {loginError && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-bold text-center">
+              {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
+            <div>
+              <label className="block text-slate-300 font-bold mb-1">ชื่อผู้ใช้ (Username)</label>
+              <input
+                type="text"
+                required
+                placeholder="พิมพ์ admin"
+                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:border-indigo-500"
+                value={adminUsername}
+                onChange={(e) => setAdminUsername(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-300 font-bold mb-1">รหัสผ่าน (Password)</label>
+              <input
+                type="password"
+                required
+                placeholder="พิมพ์รหัสผ่านแอดมิน"
+                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:border-indigo-500"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition"
+            >
+              เข้าสู่ระบบแอดมิน
+            </button>
+          </form>
+
+          <div className="text-center pt-2">
+            <Link href="/" className="text-xs text-slate-400 hover:text-white transition">
+              ← กลับหน้าหลัก
+            </Link>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   if (loading) {
     return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs">กำลังโหลดข้อมูลแอดมิน...</div>
   }
@@ -130,9 +230,9 @@ export default function AdminDashboard() {
             <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition">
               📊 สรุป CSV
             </button>
-            <Link href="/" className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition">
-              ออก
-            </Link>
+            <button onClick={handleAdminLogout} className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition">
+              ออกจากระบบ
+            </button>
           </div>
         </header>
 
@@ -193,7 +293,6 @@ export default function AdminDashboard() {
                   {payments.map((p) => {
                     const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
                     const commAmount = p.commission_amount ?? (p.amount - (p.tutor_amount ?? p.amount))
-                    // คำนวณเปอร์เซ็นต์คอมมิชชัน ณ วันที่จ่าย
                     const commPercent = p.amount > 0 ? ((commAmount / p.amount) * 100).toFixed(0) : 0
 
                     return (
