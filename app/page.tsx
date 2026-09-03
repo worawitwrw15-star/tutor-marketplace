@@ -25,10 +25,13 @@ interface Review {
   created_at: string
 }
 
+const POPULAR_SUBJECTS = ['ทั้งหมด', 'คณิตศาสตร์', 'ภาษาอังกฤษ', 'วิทยาศาสตร์', 'ฟิสิกส์', 'เคมี', 'ภาษาจีน']
+
 export default function Home() {
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [search, setSearch] = useState('')
+  const [selectedSubject, setSelectedSubject] = useState('ทั้งหมด')
   const [priceFilter, setPriceFilter] = useState<'all' | 'low' | 'mid' | 'high'>('all')
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'rating'>('default')
   const [loading, setLoading] = useState(true)
@@ -176,6 +179,10 @@ export default function Home() {
 
       if (!matchSearch) return false
 
+      if (selectedSubject !== 'ทั้งหมด' && !t.subject.includes(selectedSubject)) {
+        return false
+      }
+
       const displayPrice = t.price < 50 ? 50 : t.price
 
       if (priceFilter === 'low') return displayPrice >= 50 && displayPrice <= 150
@@ -198,12 +205,13 @@ export default function Home() {
     })
 
   return (
-    <main className="min-h-screen bg-slate-50/60 text-slate-800 relative">
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 md:px-6 py-3 shadow-sm">
+    <main className="min-h-screen bg-slate-50/80 text-slate-800 relative pb-12">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-6 py-3 shadow-sm">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
           <div className="flex items-center justify-between w-full sm:w-auto gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg shadow-indigo-600/20">
+              <div className="w-9 h-9 md:w-10 md:h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-md shadow-indigo-600/20">
                 T
               </div>
               <div>
@@ -239,20 +247,20 @@ export default function Home() {
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end overflow-x-auto pb-1 sm:pb-0">
             <Link 
               href={`/chat?tutor=${encodeURIComponent(ADMIN_EMAIL)}`}
-              className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-1 flex-shrink-0"
+              className="px-3 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-sm transition flex items-center gap-1 flex-shrink-0"
             >
-              <span>🎧</span> ติดต่อแอดมิน
+              <span>🎧</span> แอดมิน
             </Link>
 
             {isTutor && (
               <>
                 <Link 
                   href="/schedule" 
-                  className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-md transition flex-shrink-0"
+                  className="px-3 py-2 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-sm transition flex-shrink-0"
                 >
                   📅 ตารางสอน
                 </Link>
-                <Link href="/register" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex-shrink-0">
+                <Link href="/register" className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex-shrink-0">
                   โปรไฟล์ติวเตอร์
                 </Link>
               </>
@@ -260,17 +268,17 @@ export default function Home() {
 
             <Link 
               href="/profile" 
-              className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0"
+              className="px-3 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-sm transition flex items-center gap-1 flex-shrink-0"
             >
-              <span>⚙️</span> ตั้งค่าโปรไฟล์
+              <span>⚙️</span> ตั้งค่า
             </Link>
 
             <Link 
               href="/chat" 
               onClick={() => setHasUnread(false)}
-              className="relative px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md transition flex items-center gap-1 flex-shrink-0"
+              className="relative px-3 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition flex items-center gap-1 flex-shrink-0"
             >
-              <span>💬</span> ห้องแชท
+              <span>💬</span> แชท
               {hasUnread && (
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -281,7 +289,7 @@ export default function Home() {
 
             <button 
               onClick={handleLogout} 
-              className="hidden sm:block px-3 py-1.5 md:py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-xl transition"
+              className="hidden sm:block px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-xl transition"
             >
               ออกจากระบบ
             </button>
@@ -289,55 +297,78 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-10 pb-4 md:pb-6">
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl md:rounded-3xl p-6 md:p-12 text-white shadow-xl shadow-indigo-600/10 text-center relative overflow-hidden">
-          <div className="relative z-10 max-w-2xl mx-auto">
-            <span className="bg-white/20 text-white text-[10px] md:text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md inline-block mb-2 md:mb-3">
-              ✨ แพลตฟอร์มค้นหาติวเตอร์ส่วนตัว (เริ่มต้นเพียง 50 บาท/ชม.)
+      {/* Hero Banner & Search Section */}
+      <section className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-8 pb-4">
+        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-800 rounded-3xl p-6 md:p-10 text-white shadow-xl shadow-indigo-600/10 text-center relative overflow-hidden">
+          <div className="relative z-10 max-w-2xl mx-auto space-y-4">
+            <span className="bg-white/15 text-white text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md inline-block">
+              ✨ ค้นหาติวเตอร์ส่วนตัว เริ่มต้นเพียง 50 บาท/ชม.
             </span>
-            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2 md:mb-3">
-              ค้นหาติวเตอร์ส่วนตัวที่เหมาะกับคุณ
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight">
+              เรียนตัวต่อตัว จองเวลาง่าย จ่ายปลอดภัย
             </h2>
-            <p className="text-xs md:text-sm text-indigo-100 mb-6 md:mb-8 max-w-md mx-auto leading-relaxed">
-              เชื่อมต่อติวเตอร์คุณภาพ พร้อมระบบสแกนจ่าย QR Code ชำระเงินความปลอดภัยสูง
-            </p>
 
-            <div className="relative max-w-lg mx-auto mb-4">
+            {/* Search Box */}
+            <div className="relative max-w-lg mx-auto pt-2">
               <input
                 type="text"
-                placeholder="ค้นหาตามวิชา, ชื่อติวเตอร์..."
-                className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 bg-white/95 backdrop-blur-md rounded-xl md:rounded-2xl shadow-xl text-xs md:text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-white/30 transition placeholder:text-slate-400"
+                placeholder="ค้นหาตามวิชา หรือชื่อติวเตอร์..."
+                className="w-full pl-11 pr-4 py-3.5 bg-white rounded-2xl shadow-lg text-xs md:text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition placeholder:text-slate-400"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <span className="absolute left-3.5 md:left-4 top-1/2 -translate-y-1/2 text-slate-400 text-base md:text-lg">🔍</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-base">🔍</span>
             </div>
 
-            <div className="flex flex-wrap justify-center items-center gap-1.5 md:gap-2">
-              <span className="text-[11px] font-medium text-indigo-100 mr-1">เรตราคา/ชม.:</span>
-              <button onClick={() => setPriceFilter('all')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'all' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>ทั้งหมด</button>
-              <button onClick={() => setPriceFilter('low')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'low' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>50 - 150 ฿</button>
-              <button onClick={() => setPriceFilter('mid')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'mid' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>151 - 300 ฿</button>
-              <button onClick={() => setPriceFilter('high')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'high' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>มากกว่า 300 ฿</button>
+            {/* Subject Chips */}
+            <div className="flex flex-wrap justify-center items-center gap-1.5 pt-2">
+              {POPULAR_SUBJECTS.map((subj) => (
+                <button
+                  key={subj}
+                  onClick={() => setSelectedSubject(subj)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition ${
+                    selectedSubject === subj
+                      ? 'bg-white text-indigo-700 shadow-md'
+                      : 'bg-white/15 text-white hover:bg-white/25'
+                  }`}
+                >
+                  {subj}
+                </button>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 md:px-6 pb-16 pt-2 md:pt-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
-          <h3 className="font-extrabold text-base md:text-lg text-slate-800">
-            ติวเตอร์พร้อมสอน ({filteredTutors.length})
-          </h3>
+      {/* Tutors Grid Section */}
+      <section className="max-w-6xl mx-auto px-4 md:px-6 pt-4">
+        {/* Filter Controls */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-sm md:text-base text-slate-800">
+              ติวเตอร์พร้อมสอน
+            </h3>
+            <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-2.5 py-0.5 rounded-full">
+              {filteredTutors.length} รายการ
+            </span>
+          </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <span className="text-xs text-slate-400 font-medium">จัดเรียงตาม:</span>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end text-xs">
+            {/* Price Range Filter */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              <button onClick={() => setPriceFilter('all')} className={`px-2.5 py-1 rounded-lg font-bold transition ${priceFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>ทั้งหมด</button>
+              <button onClick={() => setPriceFilter('low')} className={`px-2.5 py-1 rounded-lg font-bold transition ${priceFilter === 'low' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>50-150฿</button>
+              <button onClick={() => setPriceFilter('mid')} className={`px-2.5 py-1 rounded-lg font-bold transition ${priceFilter === 'mid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>151-300฿</button>
+              <button onClick={() => setPriceFilter('high')} className={`px-2.5 py-1 rounded-lg font-bold transition ${priceFilter === 'high' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>&gt;300฿</button>
+            </div>
+
+            {/* Sort Dropdown */}
             <select
-              className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-slate-100 border-none px-3 py-1.5 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
             >
-              <option value="default">ค่าเริ่มต้น</option>
+              <option value="default">จัดเรียง: ค่าเริ่มต้น</option>
               <option value="rating">⭐ คะแนนรีวิวสูงสุด</option>
               <option value="price-asc">💵 ค่าเรียน: น้อยไปมาก</option>
               <option value="price-desc">💵 ค่าเรียน: มากไปน้อย</option>
@@ -345,126 +376,141 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {filteredTutors.map((tutor) => {
-            const { avg, count, numericAvg } = getTutorRatingInfo(tutor.email)
-            const displayPrice = tutor.price < 50 ? 50 : tutor.price
-            const isPopular = count >= 3 || numericAvg >= 4.5
-            const isOwnProfile = tutor.email === userEmail
+        {/* Tutors Card Grid */}
+        {filteredTutors.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-sm space-y-3">
+            <span className="text-4xl">🔍</span>
+            <h4 className="font-bold text-sm text-slate-700">ไม่พบติวเตอร์ที่ตรงตามเงื่อนไขการค้นหา</h4>
+            <p className="text-xs text-slate-400">ลองเปลี่ยนวิชาหรือปรับช่วงราคาใหม่อีกครั้งครับ</p>
+            <button 
+              onClick={() => { setSearch(''); setSelectedSubject('ทั้งหมด'); setPriceFilter('all'); }}
+              className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-indigo-700 transition"
+            >
+              ล้างการค้นหา
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredTutors.map((tutor) => {
+              const { avg, count, numericAvg } = getTutorRatingInfo(tutor.email)
+              const displayPrice = tutor.price < 50 ? 50 : tutor.price
+              const isPopular = count >= 3 || numericAvg >= 4.5
+              const isOwnProfile = tutor.email === userEmail
 
-            return (
-              <div key={tutor.id} className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold text-lg shadow-sm flex-shrink-0">
-                        {tutor.avatar_url ? (
-                          <img src={tutor.avatar_url} alt={tutor.name} className="w-full h-full object-cover" />
-                        ) : (
-                          tutor.name.charAt(0)
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <h4 className="font-bold text-sm md:text-base text-slate-800 leading-tight truncate">{tutor.name}</h4>
-                          <span className="text-emerald-500 text-xs font-extrabold" title="ยืนยันตัวตนแล้ว">✔</span>
-                        </div>
-                        {tutor.nickname && (
-                          <span className="text-[11px] md:text-xs font-medium text-slate-400 block mt-0.5 truncate">({tutor.nickname})</span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="bg-indigo-50 text-indigo-600 text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100/50 flex-shrink-0">
-                      {tutor.subject}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                      🛡️ ยืนยันตัวตนแล้ว
-                    </span>
-                    {isPopular && (
-                      <span className="bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        🔥 ติวเตอร์ยอดนิยม
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 md:py-2 rounded-xl md:rounded-2xl mb-3 md:mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-amber-500 font-bold text-xs">⭐ {count > 0 ? avg : 'ใหม่'}</span>
-                      <span className="text-[10px] md:text-[11px] text-slate-400 font-medium">({count} รีวิว)</span>
-                    </div>
-                    <button
-                      onClick={() => setSelectedTutorForReview(tutor)}
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-                    >
-                      💬 ดูรีวิว
-                    </button>
-                  </div>
-
-                  <p className="text-slate-500 text-xs leading-relaxed mb-4 md:mb-6 line-clamp-3 bg-slate-50 p-3 rounded-xl md:rounded-2xl border border-slate-100/80">
-                    {tutor.bio}
-                  </p>
-                </div>
-
-                <div className="pt-3 md:pt-4 border-t border-slate-100 flex items-center justify-between">
+              return (
+                <div key={tutor.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between">
                   <div>
-                    <span className="text-[9px] md:text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
-                    <span className="text-base md:text-lg font-black text-emerald-600">{displayPrice} <span className="text-[10px] md:text-xs font-medium text-slate-400">฿/ชม.</span></span>
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-lg shadow-sm flex-shrink-0">
+                          {tutor.avatar_url ? (
+                            <img src={tutor.avatar_url} alt={tutor.name} className="w-full h-full object-cover" />
+                          ) : (
+                            tutor.name.charAt(0)
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <h4 className="font-bold text-sm text-slate-800 leading-tight truncate">{tutor.name}</h4>
+                            <span className="text-emerald-500 text-xs font-black" title="ยืนยันตัวตนแล้ว">✔</span>
+                          </div>
+                          {tutor.nickname && (
+                            <span className="text-[11px] font-medium text-slate-400 block truncate">({tutor.nickname})</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="bg-indigo-50 text-indigo-600 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100/60 flex-shrink-0">
+                        {tutor.subject}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold px-2 py-0.5 rounded-md">
+                        🛡️ ยืนยันตัวตนแล้ว
+                      </span>
+                      {isPopular && (
+                        <span className="bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-bold px-2 py-0.5 rounded-md">
+                          🔥 ติวเตอร์ยอดนิยม
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between bg-amber-50/60 border border-amber-100 px-3 py-1.5 rounded-xl mb-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-amber-500 font-bold text-xs">⭐ {count > 0 ? avg : 'ใหม่'}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">({count} รีวิว)</span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedTutorForReview(tutor)}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                      >
+                        💬 ดูรีวิว
+                      </button>
+                    </div>
+
+                    <p className="text-slate-500 text-xs leading-relaxed mb-4 line-clamp-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                      {tutor.bio || 'ไม่มีข้อมูลรายละเอียดเพิ่มเติม'}
+                    </p>
                   </div>
-                  <div className="flex gap-1.5">
-                    <Link 
-                      href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-2.5 md:px-3 py-2 rounded-xl transition"
-                    >
-                      แชท
-                    </Link>
-                    
-                    {/* สลับการแสดงผลระหว่างปุ่ม "ตารางสอน" (ถ้าเป็นโปรไฟล์ตัวเอง) และ "จองเรียน" (สำหรับนักเรียน) */}
-                    {isOwnProfile ? (
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
+                      <span className="text-base font-black text-emerald-600">{displayPrice} <span className="text-[10px] font-normal text-slate-400">฿/ชม.</span></span>
+                    </div>
+                    <div className="flex gap-1.5">
                       <Link 
-                        href="/schedule" 
-                        className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3 md:px-3.5 py-2 rounded-xl transition shadow-md shadow-violet-600/20"
+                        href={tutor.email ? `/chat?tutor=${encodeURIComponent(tutor.email)}` : '/chat'} 
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition"
                       >
-                        ตารางสอน
+                        แชท
                       </Link>
-                    ) : (
-                      <Link 
-                        href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 md:px-3.5 py-2 rounded-xl transition shadow-md shadow-indigo-600/20"
-                      >
-                        จองเรียน
-                      </Link>
-                    )}
+                      
+                      {isOwnProfile ? (
+                        <Link 
+                          href="/schedule" 
+                          className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-sm"
+                        >
+                          ตารางสอน
+                        </Link>
+                      ) : (
+                        <Link 
+                          href={tutor.email ? `/checkout?tutor=${encodeURIComponent(tutor.email)}` : '/checkout'} 
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-sm"
+                        >
+                          จองเรียน
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </section>
 
+      {/* Review Modal */}
       {selectedTutorForReview && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-4">
-          <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 max-w-lg w-full shadow-2xl space-y-4 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 relative max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3 sticky top-0 bg-white z-10">
               <div>
-                <h3 className="font-extrabold text-sm md:text-base text-slate-800">
+                <h3 className="font-extrabold text-base text-slate-800">
                   ⭐ รีวิวของ {selectedTutorForReview.name}
                 </h3>
                 <p className="text-[11px] text-slate-400">วิชา {selectedTutorForReview.subject}</p>
               </div>
               <button
                 onClick={() => setSelectedTutorForReview(null)}
-                className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-xs md:text-sm transition"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-xs transition"
               >
                 ✕
               </button>
             </div>
 
             {isStudent && (
-              <form onSubmit={handleAddReview} className="bg-slate-50 p-3.5 md:p-4 rounded-xl md:rounded-2xl border border-slate-200/80 space-y-2.5">
+              <form onSubmit={handleAddReview} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2.5">
                 <h4 className="text-xs font-bold text-slate-700">✍️ เขียนรีวิว / ให้ดาวติวเตอร์คนนี้</h4>
                 
                 <div className="flex items-center gap-2">
@@ -475,7 +521,7 @@ export default function Home() {
                         type="button"
                         key={star}
                         onClick={() => setNewRating(star)}
-                        className={`text-base md:text-lg transition-transform ${star <= newRating ? 'scale-110' : 'opacity-30'}`}
+                        className={`text-lg transition-transform ${star <= newRating ? 'scale-110' : 'opacity-30'}`}
                       >
                         ⭐
                       </button>
@@ -488,7 +534,7 @@ export default function Home() {
                   required
                   rows={2}
                   placeholder="พิมพ์ความคิดเห็นของคุณ..."
-                  className="w-full p-2.5 md:p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                 />
@@ -511,7 +557,7 @@ export default function Home() {
                   return <p className="text-center text-xs text-slate-400 py-4">ยังไม่มีรีวิวสำหรับติวเตอร์คนนี้</p>
                 }
                 return tutorReviews.map((r) => (
-                  <div key={r.id} className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 text-xs space-y-1">
+                  <div key={r.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-slate-800 truncate max-w-[180px]">{r.student_email}</span>
                       <span className="text-amber-500 font-bold text-[11px]">{'⭐'.repeat(r.rating)}</span>
