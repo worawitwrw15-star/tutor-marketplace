@@ -60,6 +60,10 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'payments' | 'tutors' | 'students' | 'chat' | 'settings'>('payments')
   const [loading, setLoading] = useState(false)
 
+  // State สำหรับการแจ้งเตือน Realtime ไฟกระพริบ
+  const [hasNewPayment, setHasNewPayment] = useState(false)
+  const [hasNewMessage, setHasNewMessage] = useState(false)
+
   const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null)
 
   const [transferModalPayment, setTransferModalPayment] = useState<Payment | null>(null)
@@ -88,11 +92,12 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // Realtime Subscription สำหรับแชทแอดมิน
+  // Realtime Subscriptions สำหรับรายการโอนเงิน & แชทแอดมิน
   useEffect(() => {
     if (!isAuthenticated) return
 
-    const channel = supabase
+    // Channel 1: Realtime Messages
+    const chatChannel = supabase
       .channel('admin_chat_room')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const newMsg = payload.new as Message
@@ -105,18 +110,43 @@ export default function AdminDashboard() {
           if (partner) {
             setChatPartners((prev) => Array.from(new Set([...prev, partner])))
           }
+
+          // แจ้งเตือนกระพริบสีแดงหากผู้ส่งไม่ใช่แอดมินเอง
+          if (newMsg.sender !== ADMIN_EMAIL) {
+            setHasNewMessage(true)
+          }
         }
       })
       .subscribe()
 
+    // Channel 2: Realtime Payments
+    const paymentChannel = supabase
+      .channel('admin_payments_room')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, (payload) => {
+        const newPay = payload.new as Payment
+        setPayments((prev) => {
+          if (prev.some((p) => p.id === newPay.id)) return prev
+          return [newPay, ...prev]
+        })
+        setHasNewPayment(true)
+      })
+      .subscribe()
+
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(chatChannel)
+      supabase.removeChannel(paymentChannel)
     }
   }, [isAuthenticated])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages, activeChatPartner])
+
+  const handleTabChange = (tab: 'payments' | 'tutors' | 'students' | 'chat' | 'settings') => {
+    setActiveTab(tab)
+    if (tab === 'payments') setHasNewPayment(false)
+    if (tab === 'chat') setHasNewMessage(false)
+  }
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -173,7 +203,7 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
-  // ฟังก์ชันระงับ / ปลดระงับติวเตอร์ (อัปเดตทั้ง is_suspended และ is_active)
+  // ฟังก์ชันระงับ / ปลดระงับติวเตอร์
   const handleToggleSuspendTutor = async (tutorId: string, currentSuspendedStatus: boolean) => {
     const nextSuspendedState = !currentSuspendedStatus
     const actionText = nextSuspendedState ? 'ระงับการใช้งาน' : 'ปลดระงับ'
@@ -444,34 +474,52 @@ export default function AdminDashboard() {
             <span className="text-lg md:text-2xl font-black text-emerald-600">{totalCommission.toLocaleString()} <span className="text-xs font-normal text-slate-400">บาท</span></span>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
             <span className="text-[11px] text-slate-400 font-medium block">🔔 รอโอนต่อติวเตอร์</span>
             <span className="text-lg md:text-2xl font-black text-rose-500">{pendingPayouts.length} <span className="text-xs font-normal text-slate-400">รายการ</span></span>
+            {pendingPayouts.length > 0 && (
+              <span className="absolute top-3 right-3 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Tab Selection */}
+        {/* Tab Selection พร้อมระบบไฟกระพริบแดง */}
         <div className="flex gap-1 mb-4 border-b border-slate-200 pb-2 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('payments')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+            onClick={() => handleTabChange('payments')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 relative flex items-center gap-1.5 ${
               activeTab === 'payments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            💳 รายการโอน ({payments.length})
+            <span>💳 รายการโอน ({payments.length})</span>
+            {(hasNewPayment || pendingPayouts.length > 0) && (
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              </span>
+            )}
           </button>
 
           <button
-            onClick={() => setActiveTab('chat')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+            onClick={() => handleTabChange('chat')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 relative flex items-center gap-1.5 ${
               activeTab === 'chat' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            💬 แชทช่วยเหลือ ({chatPartners.length})
+            <span>💬 แชทช่วยเหลือ ({chatPartners.length})</span>
+            {hasNewMessage && (
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              </span>
+            )}
           </button>
 
           <button
-            onClick={() => setActiveTab('tutors')}
+            onClick={() => handleTabChange('tutors')}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
               activeTab === 'tutors' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
@@ -480,7 +528,7 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab('students')}
+            onClick={() => handleTabChange('students')}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
               activeTab === 'students' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
@@ -489,7 +537,7 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab('settings')}
+            onClick={() => handleTabChange('settings')}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
               activeTab === 'settings' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
@@ -725,10 +773,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 2: Tutors (พร้อมระบบระงับติวเตอร์ & ยืนยันตัวตน) */}
+        {/* Tab 2: Tutors */}
         {activeTab === 'tutors' && (
           <div className="space-y-3">
-            {/* แสดงผลมือถือ (Mobile View) */}
             <div className="block md:hidden space-y-2">
               {tutors.map((t) => {
                 const isSuspended = t.is_suspended === true
@@ -772,7 +819,6 @@ export default function AdminDashboard() {
               })}
             </div>
 
-            {/* แสดงผลคอมพิวเตอร์ (Desktop View) */}
             <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
