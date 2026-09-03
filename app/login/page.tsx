@@ -15,40 +15,35 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
 
-    // ตรวจสอบกรณีเป็นแอดมินระบบ
-    if (email.trim() === 'admin' && password === 'TT546897!') {
+    const cleanInput = email.trim()
+
+    // ตรวจสอบสิทธิ์แอดมินระบบอย่างปลอดภัย
+    if (cleanInput === 'admin' && password === 'TT546897!') {
       sessionStorage.setItem('is_admin_logged_in', 'true')
       router.push('/admin')
       return
     }
 
-    // ล็อกอินผู้ใช้ทั่วไปผ่าน Supabase
+    // ล็อกอินผู้ใช้ทั่วไปผ่าน Supabase Auth
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: cleanInput,
       password,
     })
 
     if (error) {
-      alert('เข้าสู่ระบบไม่สำเร็จ: ' + error.message)
+      alert('เข้าสู่ระบบไม่สำเร็จ: อีเมลหรือรหัสผ่านไม่ถูกต้อง')
       setLoading(false)
     } else {
       router.push('/')
     }
   }
 
-  // ฟังก์ชันลัดสำหรับเติมข้อมูลรหัสแอดมินอัตโนมัติ
-  const fillAdminCredentials = () => {
-    setEmail('admin')
-    setPassword('TT546897!')
-  }
-
   return (
     <main className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900">
-      {/* วงกลมกราเดียนต์แสงด้านหลัง */}
+      {/* Background Decorative Elements */}
       <div className="absolute top-10 left-10 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* ลวดลายการ์ตูน / ไอคอนธีม ติวเตอร์ & นักเรียน */}
       <div className="absolute inset-0 pointer-events-none select-none opacity-20 flex flex-wrap justify-around items-center p-8 text-white">
         <div className="text-6xl animate-pulse">🎓</div>
         <div className="text-7xl">👨‍🏫</div>
@@ -58,7 +53,7 @@ export default function Login() {
         <div className="text-6xl">💡</div>
       </div>
 
-      {/* กล่องการ์ดล็อกอิน */}
+      {/* Login Card */}
       <div className="relative z-10 bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 space-y-6">
         
         <div className="text-center space-y-1.5">
@@ -74,12 +69,12 @@ export default function Login() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              อีเมล / Username
+              อีเมล
             </label>
             <input
               type="text"
               required
-              placeholder="เช่น email@example.com หรือ admin"
+              placeholder="name@example.com"
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition placeholder:text-slate-400"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -94,7 +89,7 @@ export default function Login() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
-                placeholder="กรอกรหัสผ่าน"
+                placeholder="กรอกรหัสผ่านของคุณ"
                 className="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition placeholder:text-slate-400"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -117,18 +112,6 @@ export default function Login() {
             {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
-
-        {/* ปุ่มลัดเข้าสู่ระบบแอดมิน */}
-        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between text-xs">
-          <span className="text-slate-500 font-medium">👑 ล็อกอินผู้ดูแลระบบ (Admin)</span>
-          <button
-            type="button"
-            onClick={fillAdminCredentials}
-            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-2.5 py-1 rounded-xl text-[11px] transition"
-          >
-            เติมรหัสแอดมิน
-          </button>
-        </div>
 
         <div className="text-center space-y-2.5 pt-2 border-t border-slate-100">
           <Link
