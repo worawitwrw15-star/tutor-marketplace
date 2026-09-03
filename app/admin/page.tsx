@@ -270,9 +270,9 @@ export default function AdminDashboard() {
       fetchAdminData()
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
-    } flex {
-      setSubmittingPayout(false)
-    }
+    } finally {
+  setSubmittingPayout(false)
+}
   }
 
   const handleSaveSettings = async (e: React.FormEvent) => {
