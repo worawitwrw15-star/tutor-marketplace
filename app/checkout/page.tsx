@@ -8,9 +8,9 @@ function CheckoutForm() {
   const [tutor, setTutor] = useState<any>(null)
   const [settings, setSettings] = useState<any>(null)
   const [userEmail, setUserEmail] = useState('')
-  const [hours, setHours] = useState(1)
   const [bookingDate, setBookingDate] = useState('')
-  const [bookingTime, setBookingTime] = useState('09:00 - 11:00')
+  const [availableSlots, setAvailableSlots] = useState<any[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<any | null>(null)
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [slipPreview, setSlipPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -34,13 +34,11 @@ function CheckoutForm() {
       setUserEmail(session.user.email)
 
       if (tutorEmail) {
-        const { data: tData, error: tError } = await supabase
+        const { data: tData } = await supabase
           .from('tutors')
           .select('*')
           .eq('email', tutorEmail)
           .maybeSingle()
-
-        if (tError) console.error('Error fetching tutor:', tError)
         setTutor(tData)
       }
 
@@ -51,10 +49,35 @@ function CheckoutForm() {
         .maybeSingle()
 
       setSettings(sData || { promptpay_number: '0649538717', commission_rate: 15 })
+
+      const today = new Date().toISOString().split('T')[0]
+      setBookingDate(today)
+      if (tutorEmail) fetchSlots(tutorEmail, today)
     } catch (err) {
-      console.error('Error in fetchCheckoutData:', err)
+      console.error('Error fetching checkout data:', err)
     } finally {
       setFetching(false)
+    }
+  }
+
+  // ดึงสล็อตเวลาว่างจากตารางสอนของติวเตอร์
+  async function fetchSlots(tEmail: string, date: string) {
+    const { data } = await supabase
+      .from('tutor_schedules')
+      .select('*')
+      .eq('tutor_email', tEmail)
+      .eq('available_date', date)
+      .eq('is_booked', false)
+
+    setAvailableSlots(data || [])
+    setSelectedSlot(null)
+  }
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value
+    setBookingDate(newDate)
+    if (tutor?.email) {
+      fetchSlots(tutor.email, newDate)
     }
   }
 
@@ -68,12 +91,12 @@ function CheckoutForm() {
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!slipFile || !tutor) {
-      alert('กรุณาแนบสลิปการโอนเงินก่อนยืนยันการจอง')
+    if (!selectedSlot) {
+      alert('กรุณาเลือกรอบเวลาเรียนจากตารางสอนก่อนครับ')
       return
     }
-    if (!bookingDate) {
-      alert('กรุณาเลือกวันที่ต้องการเรียน')
+    if (!slipFile || !tutor) {
+      alert('กรุณาแนบสลิปการโอนเงินก่อนยืนยันการจอง')
       return
     }
 
@@ -96,9 +119,7 @@ function CheckoutForm() {
         })
       }
 
-      // คำนวณราคาเริ่มต้นขั้นต่ำ 50 บาท/ชั่วโมง
-      const unitPrice = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
-      const totalAmount = unitPrice * Number(hours)
+      const totalAmount = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
       const commissionRate = Number(settings?.commission_rate || 15)
       const commissionAmount = (totalAmount * commissionRate) / 100
       const tutorAmount = totalAmount - commissionAmount
@@ -112,7 +133,7 @@ function CheckoutForm() {
           tutor_amount: tutorAmount,
           slip_url: slipUrl,
           booking_date: bookingDate,
-          booking_time: bookingTime,
+          booking_time: selectedSlot.time_slot,
           course_status: 'pending_confirm'
         }
       ])
@@ -123,15 +144,21 @@ function CheckoutForm() {
         return
       }
 
+      // ล็อกสล็อตตารางสอนของติวเตอร์ เปลี่ยนสถานะเป็นถูกจองแล้ว
+      await supabase
+        .from('tutor_schedules')
+        .update({ is_booked: true, student_email: userEmail })
+        .eq('id', selectedSlot.id)
+
       await supabase.from('messages').insert([
         {
           sender: userEmail,
           receiver: tutor.email,
-          content: `📅 [แจ้งจองคอร์สเรียน] นักเรียนได้จองเวลาเรียนวันที่ ${bookingDate} (${bookingTime}) จำนวน ${hours} ชั่วโมง เรียบร้อยแล้วครับ`
+          content: `📅 [แจ้งจองคอร์สเรียน] นักเรียนได้จองตารางสอนวันที่ ${bookingDate} รอบเวลา ${selectedSlot.time_slot} เรียบร้อยแล้วครับ`
         }
       ])
 
-      alert('จองคอร์สเรียนและส่งสลิปสำเร็จ!')
+      alert('จองตารางสอนและแนบสลิปสำเร็จ!')
       router.push('/chat')
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
@@ -143,7 +170,7 @@ function CheckoutForm() {
   if (fetching) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">
-        กำลังโหลดข้อมูลการจอง...
+        กำลังโหลดข้อมูลตารางสอน...
       </div>
     )
   }
@@ -159,83 +186,87 @@ function CheckoutForm() {
     )
   }
 
-  // คำนวณราคาสุทธิและสร้างรูป QR Code PromptPay อัตโนมัติ
   const unitPrice = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
-  const totalPrice = unitPrice * Number(hours)
   const promptpayNumber = settings?.promptpay_number || '0649538717'
-  const qrCodeUrl = `https://promptpay.io/${promptpayNumber}/${totalPrice}.png`
+  const qrCodeUrl = `https://promptpay.io/${promptpayNumber}/${unitPrice}.png`
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8 flex justify-center items-center">
       <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-xl border border-slate-100 space-y-6">
         <div className="flex justify-between items-center border-b pb-3">
-          <h1 className="font-black text-base md:text-lg text-slate-800">💳 ชำระเงินผ่าน QR Code พร้อมเพย์</h1>
+          <h1 className="font-black text-base md:text-lg text-slate-800">📅 จองตารางสอน & ชำระเงิน</h1>
           <Link href="/" className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">← กลับ</Link>
         </div>
 
         <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 text-xs space-y-1.5">
           <div className="flex justify-between"><span className="text-slate-500">ติวเตอร์:</span><strong className="text-slate-800">{tutor.name}</strong></div>
           <div className="flex justify-between"><span className="text-slate-500">วิชาสอน:</span><strong className="text-indigo-600">{tutor.subject}</strong></div>
-          <div className="flex justify-between"><span className="text-slate-500">ค่าเรียน:</span><strong className="text-slate-800">{unitPrice} บาท/ชั่วโมง (เรตเริ่มต้น 50 บาท)</strong></div>
-        </div>
-
-        {/* แสดงผล QR Code พร้อมเพย์ สำหรับสแกนจ่าย */}
-        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center space-y-3">
-          <h3 className="font-extrabold text-xs text-slate-700">📱 สแกน QR Code เพื่อชำระเงิน</h3>
-          <div className="bg-white p-3 inline-block rounded-2xl shadow-sm border border-slate-100">
-            <img src={qrCodeUrl} alt="PromptPay QR Code" className="w-44 h-44 object-contain mx-auto" />
-          </div>
-          <div className="text-xs space-y-0.5">
-            <p className="text-slate-500">พร้อมเพย์: <strong className="text-slate-800">{promptpayNumber}</strong></p>
-            <p className="text-slate-500">ยอดชำระสุทธิ: <strong className="text-emerald-600 text-base font-black">{totalPrice.toLocaleString()} บาท</strong></p>
-          </div>
+          <div className="flex justify-between"><span className="text-slate-500">ค่าเรียน:</span><strong className="text-slate-800">{unitPrice} บาท/ชั่วโมง</strong></div>
         </div>
 
         <form onSubmit={handleSubmitPayment} className="space-y-4 text-xs">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">จำนวนชั่วโมง</label>
-              <input
-                type="number" min="1" max="20" required
-                className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-slate-800"
-                value={hours} onChange={(e) => setHours(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">รอบเวลาเรียน</label>
-              <select
-                className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-slate-800"
-                value={bookingTime} onChange={(e) => setBookingTime(e.target.value)}
-              >
-                <option value="09:00 - 11:00">09:00 - 11:00 น.</option>
-                <option value="13:00 - 15:00">13:00 - 15:00 น.</option>
-                <option value="16:00 - 18:00">16:00 - 18:00 น.</option>
-                <option value="19:00 - 21:00">19:00 - 21:00 น.</option>
-              </select>
-            </div>
-          </div>
-
           <div>
-            <label className="block font-bold text-slate-700 mb-1">วันที่ต้องการเรียน</label>
+            <label className="block font-bold text-slate-700 mb-1">1. เลือกวันที่ต้องการเรียน</label>
             <input
               type="date" required
               className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-slate-800"
-              value={bookingDate} onChange={(e) => setBookingDate(e.target.value)}
+              value={bookingDate} onChange={handleDateChange}
             />
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">แนบสลิปการโอนเงิน</label>
-            <input type="file" accept="image/*" required onChange={handleFileChange} className="w-full text-xs p-2 border rounded-xl" />
-            {slipPreview && <img src={slipPreview} alt="Preview" className="max-h-32 mx-auto rounded-lg mt-2 shadow-sm" />}
+            <label className="block font-bold text-slate-700 mb-1">2. เลือกรอบเวลาว่างของติวเตอร์</label>
+            {availableSlots.length === 0 ? (
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-amber-700 text-center font-medium">
+                ⚠️ ติวเตอร์ยังไม่ได้เปิดตารางสอนในวันที่เลือก กรุณาเปลี่ยนไปเลือกวันอื่นครับ
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {availableSlots.map((slot) => (
+                  <button
+                    type="button"
+                    key={slot.id}
+                    onClick={() => setSelectedSlot(slot)}
+                    className={`p-3 rounded-xl font-bold border transition text-center ${
+                      selectedSlot?.id === slot.id
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                        : 'bg-slate-50 text-slate-800 border-slate-200 hover:border-indigo-400'
+                    }`}
+                  >
+                    ⏰ {slot.time_slot}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition disabled:bg-slate-300"
-          >
-            {loading ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการจอง & ส่งสลิป'}
-          </button>
+          {selectedSlot && (
+            <>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center space-y-3">
+                <h3 className="font-extrabold text-xs text-slate-700">📱 สแกน QR Code เพื่อชำระเงิน</h3>
+                <div className="bg-white p-3 inline-block rounded-2xl shadow-sm border border-slate-100">
+                  <img src={qrCodeUrl} alt="PromptPay QR Code" className="w-44 h-44 object-contain mx-auto" />
+                </div>
+                <div className="text-xs space-y-0.5">
+                  <p className="text-slate-500">พร้อมเพย์: <strong className="text-slate-800">{promptpayNumber}</strong></p>
+                  <p className="text-slate-500">ยอดชำระสุทธิ: <strong className="text-emerald-600 text-base font-black">{unitPrice.toLocaleString()} บาท</strong></p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">แนบสลิปการโอนเงิน</label>
+                <input type="file" accept="image/*" required onChange={handleFileChange} className="w-full text-xs p-2 border rounded-xl" />
+                {slipPreview && <img src={slipPreview} alt="Preview" className="max-h-32 mx-auto rounded-lg mt-2 shadow-sm" />}
+              </div>
+
+              <button
+                type="submit" disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition disabled:bg-slate-300"
+              >
+                {loading ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการจองตารางสอน & ส่งสลิป'}
+              </button>
+            </>
+          )}
         </form>
       </div>
     </main>

@@ -245,9 +245,17 @@ export default function Home() {
             </Link>
 
             {isTutor && (
-              <Link href="/register" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex-shrink-0">
-                โปรไฟล์ติวเตอร์
-              </Link>
+              <>
+                <Link 
+                  href="/schedule" 
+                  className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-md transition flex-shrink-0"
+                >
+                  📅 ตารางสอน
+                </Link>
+                <Link href="/register" className="px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex-shrink-0">
+                  โปรไฟล์ติวเตอร์
+                </Link>
+              </>
             )}
 
             <Link 
@@ -370,7 +378,6 @@ export default function Home() {
                     </span>
                   </div>
 
-                  {/* ป้ายกำกับพิเศษ Badges & Tiers */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                       🛡️ ยืนยันตัวตนแล้ว
