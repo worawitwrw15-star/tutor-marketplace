@@ -50,7 +50,7 @@ function CheckoutForm() {
         .eq('id', 1)
         .maybeSingle()
 
-      setSettings(sData || { promptpay_number: '0812345678', commission_rate: 15 })
+      setSettings(sData || { promptpay_number: '0649538717', commission_rate: 15 })
     } catch (err) {
       console.error('Error in fetchCheckoutData:', err)
     } finally {
@@ -96,7 +96,9 @@ function CheckoutForm() {
         })
       }
 
-      const totalAmount = Number(tutor.price) * Number(hours)
+      // คำนวณราคาเริ่มต้นขั้นต่ำ 50 บาท/ชั่วโมง
+      const unitPrice = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
+      const totalAmount = unitPrice * Number(hours)
       const commissionRate = Number(settings?.commission_rate || 15)
       const commissionAmount = (totalAmount * commissionRate) / 100
       const tutorAmount = totalAmount - commissionAmount
@@ -157,20 +159,36 @@ function CheckoutForm() {
     )
   }
 
-  const totalPrice = Number(tutor.price) * Number(hours)
+  // คำนวณราคาสุทธิและสร้างรูป QR Code PromptPay อัตโนมัติ
+  const unitPrice = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
+  const totalPrice = unitPrice * Number(hours)
+  const promptpayNumber = settings?.promptpay_number || '0649538717'
+  const qrCodeUrl = `https://promptpay.io/${promptpayNumber}/${totalPrice}.png`
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8 flex justify-center items-center">
       <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-xl border border-slate-100 space-y-6">
         <div className="flex justify-between items-center border-b pb-3">
-          <h1 className="font-black text-base md:text-lg text-slate-800">💳 จองคอร์สเรียน & ชำระเงิน</h1>
+          <h1 className="font-black text-base md:text-lg text-slate-800">💳 ชำระเงินผ่าน QR Code พร้อมเพย์</h1>
           <Link href="/" className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">← กลับ</Link>
         </div>
 
         <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 text-xs space-y-1.5">
           <div className="flex justify-between"><span className="text-slate-500">ติวเตอร์:</span><strong className="text-slate-800">{tutor.name}</strong></div>
           <div className="flex justify-between"><span className="text-slate-500">วิชาสอน:</span><strong className="text-indigo-600">{tutor.subject}</strong></div>
-          <div className="flex justify-between"><span className="text-slate-500">ค่าเรียน:</span><strong className="text-slate-800">{tutor.price} บาท/ชั่วโมง</strong></div>
+          <div className="flex justify-between"><span className="text-slate-500">ค่าเรียน:</span><strong className="text-slate-800">{unitPrice} บาท/ชั่วโมง (เรตเริ่มต้น 50 บาท)</strong></div>
+        </div>
+
+        {/* แสดงผล QR Code พร้อมเพย์ สำหรับสแกนจ่าย */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center space-y-3">
+          <h3 className="font-extrabold text-xs text-slate-700">📱 สแกน QR Code เพื่อชำระเงิน</h3>
+          <div className="bg-white p-3 inline-block rounded-2xl shadow-sm border border-slate-100">
+            <img src={qrCodeUrl} alt="PromptPay QR Code" className="w-44 h-44 object-contain mx-auto" />
+          </div>
+          <div className="text-xs space-y-0.5">
+            <p className="text-slate-500">พร้อมเพย์: <strong className="text-slate-800">{promptpayNumber}</strong></p>
+            <p className="text-slate-500">ยอดชำระสุทธิ: <strong className="text-emerald-600 text-base font-black">{totalPrice.toLocaleString()} บาท</strong></p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmitPayment} className="space-y-4 text-xs">
@@ -204,11 +222,6 @@ function CheckoutForm() {
               className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-slate-800"
               value={bookingDate} onChange={(e) => setBookingDate(e.target.value)}
             />
-          </div>
-
-          <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center space-y-1">
-            <span className="text-slate-500 block">ยอดโอนชำระผ่าน PromptPay เบอร์: <strong>{settings?.promptpay_number || '0812345678'}</strong></span>
-            <span className="text-2xl font-black text-emerald-600">{totalPrice.toLocaleString()} บาท</span>
           </div>
 
           <div>

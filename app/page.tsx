@@ -13,6 +13,7 @@ interface Tutor {
   bio: string
   email?: string
   avatar_url?: string
+  is_verified?: boolean
 }
 
 interface Review {
@@ -166,7 +167,6 @@ export default function Home() {
     )
   }
 
-  // ระบบค้นหาและฟิลเตอร์ขั้นสูง (Advanced Filters & Sorting)
   const filteredTutors = tutors
     .filter((t) => {
       const matchSearch =
@@ -176,14 +176,19 @@ export default function Home() {
 
       if (!matchSearch) return false
 
-      if (priceFilter === 'low') return t.price < 200
-      if (priceFilter === 'mid') return t.price >= 200 && t.price <= 500
-      if (priceFilter === 'high') return t.price > 500
+      const displayPrice = t.price < 50 ? 50 : t.price
+
+      if (priceFilter === 'low') return displayPrice >= 50 && displayPrice <= 150
+      if (priceFilter === 'mid') return displayPrice > 150 && displayPrice <= 300
+      if (priceFilter === 'high') return displayPrice > 300
       return true
     })
     .sort((a, b) => {
-      if (sortBy === 'price-asc') return a.price - b.price
-      if (sortBy === 'price-desc') return b.price - a.price
+      const priceA = a.price < 50 ? 50 : a.price
+      const priceB = b.price < 50 ? 50 : b.price
+
+      if (sortBy === 'price-asc') return priceA - priceB
+      if (sortBy === 'price-desc') return priceB - priceA
       if (sortBy === 'rating') {
         const ratingA = getTutorRatingInfo(a.email).numericAvg
         const ratingB = getTutorRatingInfo(b.email).numericAvg
@@ -280,13 +285,13 @@ export default function Home() {
         <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl md:rounded-3xl p-6 md:p-12 text-white shadow-xl shadow-indigo-600/10 text-center relative overflow-hidden">
           <div className="relative z-10 max-w-2xl mx-auto">
             <span className="bg-white/20 text-white text-[10px] md:text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md inline-block mb-2 md:mb-3">
-              ✨ แพลตฟอร์มค้นหาติวเตอร์ส่วนตัว
+              ✨ แพลตฟอร์มค้นหาติวเตอร์ส่วนตัว (เริ่มต้นเพียง 50 บาท/ชม.)
             </span>
             <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2 md:mb-3">
               ค้นหาติวเตอร์ส่วนตัวที่เหมาะกับคุณ
             </h2>
             <p className="text-xs md:text-sm text-indigo-100 mb-6 md:mb-8 max-w-md mx-auto leading-relaxed">
-              เชื่อมต่อติวเตอร์คุณภาพ พร้อมระบบชำระเงินความปลอดภัยสูงผ่าน PromptPay
+              เชื่อมต่อติวเตอร์คุณภาพ พร้อมระบบสแกนจ่าย QR Code ชำระเงินความปลอดภัยสูง
             </p>
 
             <div className="relative max-w-lg mx-auto mb-4">
@@ -300,13 +305,12 @@ export default function Home() {
               <span className="absolute left-3.5 md:left-4 top-1/2 -translate-y-1/2 text-slate-400 text-base md:text-lg">🔍</span>
             </div>
 
-            {/* แถบตัวกรองราคา (Price Filters) */}
             <div className="flex flex-wrap justify-center items-center gap-1.5 md:gap-2">
-              <span className="text-[11px] font-medium text-indigo-100 mr-1">ราคา:</span>
+              <span className="text-[11px] font-medium text-indigo-100 mr-1">เรตราคา/ชม.:</span>
               <button onClick={() => setPriceFilter('all')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'all' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>ทั้งหมด</button>
-              <button onClick={() => setPriceFilter('low')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'low' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>ต่ำกว่า 200 ฿</button>
-              <button onClick={() => setPriceFilter('mid')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'mid' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>200 - 500 ฿</button>
-              <button onClick={() => setPriceFilter('high')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'high' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>มากกว่า 500 ฿</button>
+              <button onClick={() => setPriceFilter('low')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'low' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>50 - 150 ฿</button>
+              <button onClick={() => setPriceFilter('mid')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'mid' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>151 - 300 ฿</button>
+              <button onClick={() => setPriceFilter('high')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition ${priceFilter === 'high' ? 'bg-white text-indigo-700 shadow-md' : 'bg-white/15 text-white hover:bg-white/25'}`}>มากกว่า 300 ฿</button>
             </div>
           </div>
         </div>
@@ -318,7 +322,6 @@ export default function Home() {
             ติวเตอร์พร้อมสอน ({filteredTutors.length})
           </h3>
 
-          {/* ตัวเลือกการจัดเรียง (Sorting) */}
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <span className="text-xs text-slate-400 font-medium">จัดเรียงตาม:</span>
             <select
@@ -336,9 +339,12 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredTutors.map((tutor) => {
-            const { avg, count } = getTutorRatingInfo(tutor.email)
+            const { avg, count, numericAvg } = getTutorRatingInfo(tutor.email)
+            const displayPrice = tutor.price < 50 ? 50 : tutor.price
+            const isPopular = count >= 3 || numericAvg >= 4.5
+
             return (
-              <div key={tutor.id} className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300">
+              <div key={tutor.id} className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
                 <div>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
@@ -350,7 +356,10 @@ export default function Home() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold text-sm md:text-base text-slate-800 leading-tight truncate">{tutor.name}</h4>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <h4 className="font-bold text-sm md:text-base text-slate-800 leading-tight truncate">{tutor.name}</h4>
+                          <span className="text-emerald-500 text-xs font-extrabold" title="ยืนยันตัวตนแล้ว">✔</span>
+                        </div>
                         {tutor.nickname && (
                           <span className="text-[11px] md:text-xs font-medium text-slate-400 block mt-0.5 truncate">({tutor.nickname})</span>
                         )}
@@ -359,6 +368,18 @@ export default function Home() {
                     <span className="bg-indigo-50 text-indigo-600 text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100/50 flex-shrink-0">
                       {tutor.subject}
                     </span>
+                  </div>
+
+                  {/* ป้ายกำกับพิเศษ Badges & Tiers */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                      🛡️ ยืนยันตัวตนแล้ว
+                    </span>
+                    {isPopular && (
+                      <span className="bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                        🔥 ติวเตอร์ยอดนิยม
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 md:py-2 rounded-xl md:rounded-2xl mb-3 md:mb-4">
@@ -382,7 +403,7 @@ export default function Home() {
                 <div className="pt-3 md:pt-4 border-t border-slate-100 flex items-center justify-between">
                   <div>
                     <span className="text-[9px] md:text-[10px] text-slate-400 font-medium block">ค่าเรียน</span>
-                    <span className="text-base md:text-lg font-black text-emerald-600">{tutor.price} <span className="text-[10px] md:text-xs font-medium text-slate-400">฿/ชม.</span></span>
+                    <span className="text-base md:text-lg font-black text-emerald-600">{displayPrice} <span className="text-[10px] md:text-xs font-medium text-slate-400">฿/ชม.</span></span>
                   </div>
                   <div className="flex gap-1.5">
                     <Link 
