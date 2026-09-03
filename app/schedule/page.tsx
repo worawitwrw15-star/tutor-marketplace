@@ -21,6 +21,12 @@ const TIME_SLOTS = [
 
 export default function TutorSchedulePage() {
   const [userEmail, setUserEmail] = useState('')
+  const [activeTab, setActiveTab] = useState<'booked' | 'manage'>('booked')
+  
+  // รายการคลาสที่ถูกจองแล้วทั้งหมด
+  const [allBookedSchedules, setAllBookedSchedules] = useState<any[]>([])
+  
+  // จัดการเปิด/ปิดสล็อตเวลา
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
@@ -45,9 +51,24 @@ export default function TutorSchedulePage() {
     const today = new Date().toISOString().split('T')[0]
     setStartDate(today)
     setEndDate(today)
+
+    fetchAllBooked(email)
     fetchSchedules(email, today)
   }
 
+  // ดึงคลาสที่ถูกจองแล้วทั้งหมดของติวเตอร์คนนี้
+  async function fetchAllBooked(email: string) {
+    const { data } = await supabase
+      .from('tutor_schedules')
+      .select('*')
+      .eq('tutor_email', email)
+      .eq('is_booked', true)
+      .order('available_date', { ascending: true })
+
+    setAllBookedSchedules(data || [])
+  }
+
+  // ดึงสล็อตตามวันที่เลือกในโหมดตั้งค่า
   async function fetchSchedules(email: string, date: string) {
     setLoading(true)
     const { data } = await supabase
@@ -77,7 +98,6 @@ export default function TutorSchedulePage() {
     }
   }
 
-  // สร้างอาร์เรย์รายการวันที่ตั้งแต่วันเริ่มต้นถึงวันสิ้นสุด
   const getDatesInRange = (startStr: string, endStr: string) => {
     const dates = []
     let curr = new Date(startStr)
@@ -116,7 +136,7 @@ export default function TutorSchedulePage() {
     if (error) {
       alert('เกิดข้อผิดพลาด: ' + error.message)
     } else {
-      alert(`บันทึกเวลาเปิดสอนล่วงหน้าเรียบร้อยแล้ว (${dateList.length} วัน)!`)
+      alert(`เปิดเวลาสอนเรียบร้อยแล้ว (${dateList.length} วัน)!`)
       setSelectedSlots([])
       fetchSchedules(userEmail, startDate)
     }
@@ -127,110 +147,201 @@ export default function TutorSchedulePage() {
     if (!confirm('ต้องการลบช่วงเวลานี้หรือไม่?')) return
     await supabase.from('tutor_schedules').delete().eq('id', id)
     fetchSchedules(userEmail, startDate)
+    fetchAllBooked(userEmail)
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-8 flex justify-center items-center">
-      <div className="bg-white rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-xl border border-slate-100 space-y-6">
-        <div className="flex justify-between items-center border-b pb-3">
+    <main className="min-h-screen bg-slate-50 p-4 md:p-8 flex justify-center items-start pb-12">
+      <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-xl border border-slate-100 space-y-6 mt-4">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center border-b border-slate-100 pb-4">
           <div>
-            <h1 className="font-black text-base md:text-lg text-slate-800">📅 จัดการตารางสอน & เปิดวันว่าง</h1>
-            <p className="text-xs text-slate-400">{userEmail}</p>
+            <h1 className="font-black text-lg text-slate-800">📅 จัดการตารางสอน</h1>
+            <p className="text-xs text-slate-400 font-medium truncate">{userEmail}</p>
           </div>
-          <Link href="/" className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">
+          <Link href="/" className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-xl transition">
             ← หน้าหลัก
           </Link>
         </div>
 
-        <div className="space-y-4 text-xs">
-          <div className="bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-100 space-y-2">
-            <label className="block font-bold text-slate-700">เลือกช่วงวันที่เปิดสอน (ตั้งค่าทีเดียวหลายวันได้)</label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <span className="text-[10px] text-slate-400 font-medium">ตั้งแต่วันที่:</span>
-                <input
-                  type="date"
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800"
-                  value={startDate}
-                  onChange={handleStartDateChange}
-                />
+        {/* Tab Switcher */}
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+          <button
+            onClick={() => setActiveTab('booked')}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'booked'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>🎓</span> ตารางที่นักเรียนจอง ({allBookedSchedules.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('manage')}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'manage'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>⚙️</span> เปิด/ปิด สล็อตเวลาว่าง
+          </button>
+        </div>
+
+        {/* TAB 1: ตารางคลาสที่ถูกจองแล้ว */}
+        {activeTab === 'booked' && (
+          <div className="space-y-3">
+            <h2 className="text-xs font-bold text-slate-700 flex items-center gap-1">
+              📌 รายการคลาสที่มีการจองเข้ามาทั้งหมด
+            </h2>
+
+            {allBookedSchedules.length === 0 ? (
+              <div className="bg-slate-50 rounded-2xl p-8 text-center border border-slate-100 space-y-1">
+                <span className="text-3xl">☕</span>
+                <p className="text-xs font-bold text-slate-600">ยังไม่มีนักเรียนจองคลาสเข้ามา</p>
+                <p className="text-[11px] text-slate-400">เมื่อมีนักเรียนจองคลาส รายการจะขึ้นแสดงในส่วนนี้ครับ</p>
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-medium">ถึงวันที่:</span>
-                <input
-                  type="date"
-                  min={startDate}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-2">เลือกช่วงเวลาที่เปิดสอน (คลิกเลือกได้หลายช่วง)</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {TIME_SLOTS.map((slot) => {
-                const isSelected = selectedSlots.includes(slot)
-
-                return (
-                  <button
-                    key={slot}
-                    onClick={() => toggleSlotSelect(slot)}
-                    className={`py-2.5 px-2 rounded-xl text-[11px] font-bold border transition ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-400'
-                    }`}
-                  >
-                    ⏰ {slot} {isSelected && '✓'}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {selectedSlots.length > 0 && (
-            <button
-              onClick={handleSaveSchedules}
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold shadow-md transition disabled:bg-slate-300"
-            >
-              เปิดตารางสอน ({getDatesInRange(startDate, endDate).length} วัน x {selectedSlots.length} ช่วงเวลา)
-            </button>
-          )}
-
-          <div className="pt-4 border-t border-slate-100 space-y-2">
-            <h3 className="font-bold text-slate-700">ช่วงเวลาที่เปิดสอนในวันที่ {startDate}:</h3>
-            {existingSchedules.length === 0 ? (
-              <p className="text-slate-400 py-2 text-center">ยังไม่มีตารางสอนในวันนี้</p>
             ) : (
-              <div className="space-y-2">
-                {existingSchedules.map((item) => (
+              <div className="space-y-2.5">
+                {allBookedSchedules.map((item) => (
                   <div
                     key={item.id}
-                    className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl"
+                    className="p-4 bg-gradient-to-r from-slate-50 to-indigo-50/30 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm"
                   >
-                    <span className="font-bold text-slate-800">⏰ {item.time_slot}</span>
-                    {item.is_booked ? (
-                      <span className="text-rose-500 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100">
-                        ถูกจองแล้ว ({item.student_email})
-                      </span>
-                    ) : (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-indigo-600 text-white font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg">
+                          📆 {new Date(item.available_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="font-extrabold text-xs text-slate-800">
+                          ⏰ {item.time_slot}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 font-medium">
+                        นักเรียน: <span className="font-bold text-indigo-700">{item.student_email}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <Link
+                        href={`/chat?tutor=${encodeURIComponent(item.student_email || '')}`}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1 shadow-sm"
+                      >
+                        💬 ทักแชท
+                      </Link>
                       <button
                         onClick={() => handleDeleteSlot(item.id)}
-                        className="text-rose-500 hover:text-rose-700 font-bold px-2.5 py-1 bg-white border border-rose-100 rounded-lg hover:bg-rose-50 transition"
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 text-xs font-bold px-3 py-2 rounded-xl transition"
                       >
-                        ลบ
+                        ยกเลิกคลาส
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {/* TAB 2: ตั้งค่าเปิด/ปิดสล็อตเวลา */}
+        {activeTab === 'manage' && (
+          <div className="space-y-4 text-xs">
+            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-3">
+              <label className="block font-bold text-slate-700">1. เลือกช่วงวันที่ต้องการเปิดสอน</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium">ตั้งแต่วันที่:</span>
+                  <input
+                    type="date"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={startDate}
+                    onChange={handleStartDateChange}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium">ถึงวันที่:</span>
+                  <input
+                    type="date"
+                    min={startDate}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-2">2. เลือกช่วงเวลาที่เปิดสอน (เลือกได้หลายช่วง)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {TIME_SLOTS.map((slot) => {
+                  const isSelected = selectedSlots.includes(slot)
+
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => toggleSlotSelect(slot)}
+                      className={`py-2.5 px-2 rounded-xl text-[11px] font-bold border transition ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-400'
+                      }`}
+                    >
+                      ⏰ {slot} {isSelected && '✓'}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {selectedSlots.length > 0 && (
+              <button
+                onClick={handleSaveSchedules}
+                disabled={loading}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold shadow-lg shadow-emerald-600/20 transition disabled:bg-slate-300"
+              >
+                เปิดตารางสอน ({getDatesInRange(startDate, endDate).length} วัน x {selectedSlots.length} ช่วงเวลา)
+              </button>
+            )}
+
+            {/* รายการสล็อตย่อยตามวันที่เลือก */}
+            <div className="pt-4 border-t border-slate-100 space-y-2">
+              <h3 className="font-bold text-slate-700">
+                สล็อตเวลาที่เปิดสอนในวันที่ {startDate}:
+              </h3>
+              {existingSchedules.length === 0 ? (
+                <p className="text-slate-400 py-2 text-center bg-slate-50 rounded-xl">ยังไม่มีการเปิดสล็อตเวลาในวันที่เลือก</p>
+              ) : (
+                <div className="space-y-2">
+                  {existingSchedules.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl"
+                    >
+                      <span className="font-bold text-slate-800">⏰ {item.time_slot}</span>
+                      {item.is_booked ? (
+                        <span className="text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100 text-[11px]">
+                          ถูกจองแล้ว ({item.student_email})
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSlot(item.id)}
+                          className="text-rose-500 hover:text-rose-700 font-bold px-3 py-1 bg-white border border-rose-100 rounded-lg hover:bg-rose-50 transition"
+                        >
+                          ลบสล็อต
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
   )
