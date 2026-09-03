@@ -13,6 +13,8 @@ interface Tutor {
   bank_name?: string
   bank_account_no?: string
   bank_account_name?: string
+  is_verified?: boolean
+  is_active?: boolean
 }
 
 interface Student {
@@ -134,7 +136,7 @@ export default function AdminDashboard() {
   async function fetchAdminData() {
     setLoading(true)
     const { data: payData } = await supabase.from('payments').select('*').order('created_at', { ascending: false })
-    const { data: tutorData } = await supabase.from('tutors').select('*')
+    const { data: tutorData } = await supabase.from('tutors').select('*').order('name')
     const { data: studentData } = await supabase.from('students').select('*')
     const { data: settingsData } = await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle()
 
@@ -168,6 +170,41 @@ export default function AdminDashboard() {
       setCommissionRate(settingsData.commission_rate || 15)
     }
     setLoading(false)
+  }
+
+  // ฟังก์ชันระงับ / ปลดระงับติวเตอร์
+  const handleToggleSuspendTutor = async (tutorId: string, currentActiveStatus: boolean) => {
+    const nextStatus = !currentActiveStatus
+    const actionText = nextStatus ? 'เปิดใช้งาน' : 'ระงับการใช้งาน'
+
+    if (!confirm(`คุณต้องการ ${actionText} ติวเตอร์คนนี้ใช่หรือไม่?`)) return
+
+    const { error } = await supabase
+      .from('tutors')
+      .update({ is_active: nextStatus })
+      .eq('id', tutorId)
+
+    if (error) {
+      alert('เกิดข้อผิดพลาด: ' + error.message)
+    } else {
+      alert(`${actionText} ติวเตอร์เรียบร้อยแล้ว!`)
+      fetchAdminData()
+    }
+  }
+
+  // ฟังก์ชันสลับสถานะยืนยันตัวตนติวเตอร์
+  const handleToggleVerifyTutor = async (tutorId: string, currentVerifyStatus: boolean) => {
+    const nextStatus = !currentVerifyStatus
+    const { error } = await supabase
+      .from('tutors')
+      .update({ is_verified: nextStatus })
+      .eq('id', tutorId)
+
+    if (error) {
+      alert('เกิดข้อผิดพลาด: ' + error.message)
+    } else {
+      fetchAdminData()
+    }
   }
 
   const sendAdminMessage = async (e: React.FormEvent) => {
@@ -271,8 +308,8 @@ export default function AdminDashboard() {
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
     } finally {
-  setSubmittingPayout(false)
-}
+      setSubmittingPayout(false)
+    }
   }
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -570,7 +607,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="p-4 font-bold text-indigo-600">{p.tutor_amount}฿</td>
                         <td className="p-4 text-[10px]">
-                          {tutorInfo?.bank_account_no ? `${tutorInfo.bank_name} ${tutorInfo.bank_account_no}` : 'กรุงไทย 9847557586'}
+                          {tutorInfo?.bank_account_no ? `${tutorInfo.bank_name} ${tutorInfo.bank_account_no}` : 'ยังไม่กรอก'}
                         </td>
                         <td className="p-4 text-center">
                           {p.paid_to_tutor ? (
@@ -684,50 +721,112 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 2: Tutors */}
+        {/* Tab 2: Tutors (พร้อมระบบระงับติวเตอร์ & ยืนยันตัวตน) */}
         {activeTab === 'tutors' && (
           <div className="space-y-3">
+            {/* แสดงผลมือถือ (Mobile View) */}
             <div className="block md:hidden space-y-2">
-              {tutors.map((t) => (
-                <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-1">
-                  <div className="flex justify-between font-bold">
-                    <span>{t.name} ({t.nickname || '-'})</span>
-                    <span className="text-emerald-600">{t.price}฿/ชม.</span>
+              {tutors.map((t) => {
+                const isActive = t.is_active !== false
+                return (
+                  <div key={t.id} className={`p-4 rounded-2xl border shadow-sm text-xs space-y-2 ${isActive ? 'bg-white border-slate-200' : 'bg-rose-50/60 border-rose-200'}`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-800">{t.name} ({t.nickname || '-'})</span>
+                          {t.is_verified && <span className="text-emerald-500 text-[10px]">✔ ยืนยันแล้ว</span>}
+                        </div>
+                        <p className="text-indigo-600 font-semibold mt-0.5">{t.subject}</p>
+                      </div>
+                      <span className="font-black text-emerald-600 text-sm">{t.price}฿/ชม.</span>
+                    </div>
+
+                    <p className="text-slate-400 text-[10px]">{t.email}</p>
+
+                    {t.bank_account_no && (
+                      <p className="text-slate-500 text-[10px] pt-1 border-t border-slate-100">
+                        บัญชี: {t.bank_name} {t.bank_account_no} ({t.bank_account_name})
+                      </p>
+                    )}
+
+                    <div className="pt-2 border-t border-slate-100 flex gap-2">
+                      <button
+                        onClick={() => handleToggleVerifyTutor(t.id, !!t.is_verified)}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border ${t.is_verified ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}
+                      >
+                        {t.is_verified ? 'ยกเลิกการยืนยัน' : '✔ ยืนยันตัวตน'}
+                      </button>
+                      <button
+                        onClick={() => handleToggleSuspendTutor(t.id, isActive)}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold text-white ${isActive ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                      >
+                        {isActive ? '🚫 ระงับติวเตอร์' : '✅ ปลดระงับ'}
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-indigo-600 font-semibold">{t.subject}</p>
-                  <p className="text-slate-400 text-[10px]">{t.email}</p>
-                  {t.bank_account_no && (
-                    <p className="text-slate-500 text-[10px] pt-1 border-t border-slate-100">
-                      บัญชี: {t.bank_name} {t.bank_account_no} ({t.bank_account_name})
-                    </p>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
 
+            {/* แสดงผลคอมพิวเตอร์ (Desktop View) */}
             <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
                   <tr>
-                    <th className="p-4">ชื่อ</th>
+                    <th className="p-4">ชื่อติวเตอร์</th>
                     <th className="p-4">อีเมล</th>
                     <th className="p-4">วิชา</th>
                     <th className="p-4">ค่าสอน</th>
                     <th className="p-4">บัญชีรับเงิน</th>
+                    <th className="p-4">สถานะ</th>
+                    <th className="p-4 text-center">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {tutors.map((t) => (
-                    <tr key={t.id} className="hover:bg-slate-50/50">
-                      <td className="p-4 font-bold">{t.name}</td>
-                      <td className="p-4 text-slate-500">{t.email}</td>
-                      <td className="p-4 font-semibold text-indigo-600">{t.subject}</td>
-                      <td className="p-4 font-bold text-emerald-600">{t.price} ฿</td>
-                      <td className="p-4 text-[10px]">
-                        {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no}` : 'ยังไม่กรอก'}
-                      </td>
-                    </tr>
-                  ))}
+                  {tutors.map((t) => {
+                    const isActive = t.is_active !== false
+                    return (
+                      <tr key={t.id} className={isActive ? 'hover:bg-slate-50/50' : 'bg-rose-50/40'}>
+                        <td className="p-4 font-bold">
+                          {t.name} {t.nickname && `(${t.nickname})`}
+                          {t.is_verified && <span className="ml-1 text-emerald-500 font-bold" title="ยืนยันตัวตนแล้ว">✔</span>}
+                        </td>
+                        <td className="p-4 text-slate-500">{t.email}</td>
+                        <td className="p-4 font-semibold text-indigo-600">{t.subject}</td>
+                        <td className="p-4 font-bold text-emerald-600">{t.price} ฿</td>
+                        <td className="p-4 text-[10px]">
+                          {t.bank_account_no ? `${t.bank_name} | ${t.bank_account_no}` : 'ยังไม่กรอก'}
+                        </td>
+                        <td className="p-4">
+                          {isActive ? (
+                            <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                              🟢 ปกติ
+                            </span>
+                          ) : (
+                            <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200">
+                              🔴 ถูกระงับ
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-center space-x-1.5">
+                          <button
+                            onClick={() => handleToggleVerifyTutor(t.id, !!t.is_verified)}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition"
+                          >
+                            {t.is_verified ? 'ยกเลิกยืนยัน' : '✔ ยืนยัน'}
+                          </button>
+                          <button
+                            onClick={() => handleToggleSuspendTutor(t.id, isActive)}
+                            className={`text-[10px] font-bold px-3 py-1.5 rounded-lg text-white transition ${
+                              isActive ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-600 hover:bg-emerald-700'
+                            }`}
+                          >
+                            {isActive ? '🚫 ระงับ' : '✅ ปลดระงับ'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
