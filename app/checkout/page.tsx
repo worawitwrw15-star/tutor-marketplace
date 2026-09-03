@@ -4,14 +4,29 @@ import { supabase } from '@/lib/supabaseClient'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+const TIME_SLOTS = [
+  '08:00 - 09:00',
+  '09:00 - 10:00',
+  '10:00 - 11:00',
+  '11:00 - 12:00',
+  '13:00 - 14:00',
+  '14:00 - 15:00',
+  '15:00 - 16:00',
+  '16:00 - 17:00',
+  '17:00 - 18:00',
+  '18:00 - 19:00',
+  '19:00 - 20:00',
+  '20:00 - 21:00'
+]
+
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const tutorParam = searchParams.get('tutor') || ''
 
   const [tutor, setTutor] = useState<any>(null)
   const [selectedDate, setSelectedDate] = useState('')
-  const [availableSlots, setAvailableSlots] = useState<any[]>([])
-  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([])
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [studentEmail, setStudentEmail] = useState('')
   const [paymentSlip, setPaymentSlip] = useState<File | null>(null)
   const [loading, setLoading] = useState(true)
@@ -48,7 +63,7 @@ function CheckoutContent() {
     }
   }
 
-  // ดึงเฉพาะสล็อตที่ยังไม่ถูกจอง และกรองเวลาซ้ำออก
+  // ดึงสล็อตว่าง โดยเช็คว่าสล็อตไหนโดนจองไปแล้ว ให้ตัดออกจากตัวเลือกทันที
   async function fetchAvailableSlots(tutorEmail: string, date: string) {
     setLoading(true)
     const { data } = await supabase
@@ -56,15 +71,25 @@ function CheckoutContent() {
       .select('*')
       .eq('tutor_email', tutorEmail)
       .eq('available_date', date)
-      .eq('is_booked', false)
 
-    // กรองเฉพาะสล็อตที่มีเวลาไม่ซ้ำกันสำหรับเลือกจอง
-    const uniqueSlots = (data || []).filter((item, index, self) =>
-      index === self.findIndex((t) => t.time_slot === item.time_slot)
-    ).sort((a, b) => a.time_slot.localeCompare(b.time_slot))
+    if (!data) {
+      setAvailableTimeSlots([])
+      setLoading(false)
+      return
+    }
 
-    setAvailableSlots(uniqueSlots)
-    setSelectedSlotIds([])
+    // หาสล็อตเวลาที่ถูกจองไปแล้ว
+    const bookedSlots = new Set(data.filter(s => s.is_booked).map(s => s.time_slot))
+
+    // หาสล็อตเวลาที่มีการเปิดสอนและยังไม่ถูกจอง
+    const freeSlots = Array.from(new Set(
+      data
+        .filter(s => !s.is_booked && !bookedSlots.has(s.time_slot))
+        .map(s => s.time_slot)
+    )).sort()
+
+    setAvailableTimeSlots(freeSlots)
+    setSelectedSlots([])
     setLoading(false)
   }
 
@@ -74,17 +99,17 @@ function CheckoutContent() {
     if (tutorParam) fetchAvailableSlots(tutorParam, date)
   }
 
-  const toggleSlot = (id: string) => {
-    if (selectedSlotIds.includes(id)) {
-      setSelectedSlotIds(selectedSlotIds.filter((sId) => sId !== id))
+  const toggleSlot = (slot: string) => {
+    if (selectedSlots.includes(slot)) {
+      setSelectedSlots(selectedSlots.filter((s) => s !== slot))
     } else {
-      setSelectedSlotIds([...selectedSlotIds, id])
+      setSelectedSlots([...selectedSlots, slot])
     }
   }
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedSlotIds.length === 0) {
+    if (selectedSlots.length === 0) {
       alert('กรุณาเลือกอย่างน้อย 1 ช่วงเวลา')
       return
     }
@@ -109,14 +134,16 @@ function CheckoutContent() {
         slipUrl = urlData.publicUrl
       }
 
-      // 2. อัปเดตสล็อตว่าถูกจองแล้ว
+      // 2. บังคับอัปเดตทุก Row ของช่วงเวลาที่เลือกให้เป็น is_booked = true
       const { error: updateError } = await supabase
         .from('tutor_schedules')
         .update({
           is_booked: true,
           student_email: studentEmail
         })
-        .in('id', selectedSlotIds)
+        .eq('tutor_email', tutorParam)
+        .eq('available_date', selectedDate)
+        .in('time_slot', selectedSlots)
 
       if (updateError) throw updateError
 
@@ -130,7 +157,7 @@ function CheckoutContent() {
   }
 
   const unitPrice = tutor?.price < 50 ? 50 : tutor?.price || 50
-  const totalPrice = unitPrice * selectedSlotIds.length
+  const totalPrice = unitPrice * selectedSlots.length
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8 flex justify-center items-center pb-12">
@@ -181,35 +208,35 @@ function CheckoutContent() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="block font-bold text-slate-700">2. เลือกรอบเวลาว่าง (เลือกได้หลายรอบ)</label>
-              {selectedSlotIds.length > 0 && (
+              {selectedSlots.length > 0 && (
                 <span className="text-[10px] bg-indigo-100 text-indigo-700 font-extrabold px-2 py-0.5 rounded-full">
-                  เลือกแล้ว {selectedSlotIds.length} ชม.
+                  เลือกแล้ว {selectedSlots.length} ชม.
                 </span>
               )}
             </div>
 
             {loading ? (
               <p className="text-slate-400 py-4 text-center">กำลังโหลดรอบเวลา...</p>
-            ) : availableSlots.length === 0 ? (
+            ) : availableTimeSlots.length === 0 ? (
               <p className="text-slate-400 py-4 text-center bg-slate-50 rounded-xl">
-                ไม่มีรอบเวลาว่างในวันที่เลือก
+                ไม่มีรอบเวลาว่างในวันที่เลือก (ถูกจองหมดแล้ว)
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
-                {availableSlots.map((slot) => {
-                  const isSelected = selectedSlotIds.includes(slot.id)
+                {availableTimeSlots.map((slot) => {
+                  const isSelected = selectedSlots.includes(slot)
                   return (
                     <button
-                      key={slot.id}
+                      key={slot}
                       type="button"
-                      onClick={() => toggleSlot(slot.id)}
+                      onClick={() => toggleSlot(slot)}
                       className={`p-2.5 rounded-xl text-xs font-bold border transition ${
                         isSelected
                           ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
                           : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-400'
                       }`}
                     >
-                      ⏰ {slot.time_slot} {isSelected && '✓'}
+                      ⏰ {slot} {isSelected && '✓'}
                     </button>
                   )
                 })}
@@ -243,7 +270,7 @@ function CheckoutContent() {
 
           <button
             type="submit"
-            disabled={submitting || selectedSlotIds.length === 0}
+            disabled={submitting || selectedSlots.length === 0}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-emerald-600/20 transition disabled:bg-slate-300"
           >
             {submitting ? 'กำลังยืนยันการชำระเงิน...' : `ยืนยันการจอง (${totalPrice} บาท)`}

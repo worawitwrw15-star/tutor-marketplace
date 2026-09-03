@@ -54,7 +54,7 @@ export default function TutorSchedulePage() {
     fetchSchedules(email, today)
   }
 
-  // ดึงรายการที่จองแล้ว (ตัดตัวซ้ำตาม id หรือเวลาถ้าบังเอิญมีข้อมูลซ้ำ)
+  // ดึงรายการที่ถูกจอง (จัดกลุ่มไม่ให้ซ้ำกัน)
   async function fetchAllBooked(email: string) {
     const { data } = await supabase
       .from('tutor_schedules')
@@ -63,17 +63,16 @@ export default function TutorSchedulePage() {
       .eq('is_booked', true)
       .order('available_date', { ascending: true })
 
-    // กรองซ้ำกรณีที่มีข้อมูลสล็อตเวลา+วันที่+คนจองเดียวกันหลุดเข้าไป
     const uniqueBooked = (data || []).filter((item, index, self) =>
       index === self.findIndex((t) => (
-        t.available_date === item.available_date && t.time_slot === item.time_slot && t.student_email === item.student_email
+        t.available_date === item.available_date && t.time_slot === item.time_slot
       ))
     )
 
     setAllBookedSchedules(uniqueBooked)
   }
 
-  // ดึงสล็อตทั้งหมดในวันที่เลือก
+  // ดึงสล็อตทั้งหมดในวันที่เลือก (รวมกลุ่มไม่ให้เวลาแสดงซ้ำใน UI)
   async function fetchSchedules(email: string, date: string) {
     setLoading(true)
     const { data } = await supabase
@@ -82,8 +81,22 @@ export default function TutorSchedulePage() {
       .eq('tutor_email', email)
       .eq('available_date', date)
 
-    const sorted = (data || []).sort((a, b) => a.time_slot.localeCompare(b.time_slot))
-    setExistingSchedules(sorted)
+    if (!data) {
+      setExistingSchedules([])
+      setLoading(false)
+      return
+    }
+
+    // รวมกลุ่มข้อมูลสล็อตเวลาที่ซ้ำกัน ให้แสดงเพียงรายการเดียว
+    const map = new Map()
+    data.forEach(item => {
+      if (!map.has(item.time_slot) || item.is_booked) {
+        map.set(item.time_slot, item)
+      }
+    })
+
+    const uniqueList = Array.from(map.values()).sort((a, b) => a.time_slot.localeCompare(b.time_slot))
+    setExistingSchedules(uniqueList)
     setLoading(false)
   }
 
@@ -124,7 +137,6 @@ export default function TutorSchedulePage() {
     setLoading(true)
     const dateList = getDatesInRange(startDate, endDate)
 
-    // ดึงข้อมูลเดิมที่มีอยู่แล้วในระบบเพื่อป้องกันการ Insert ซ้ำ
     const { data: existingData } = await supabase
       .from('tutor_schedules')
       .select('available_date, time_slot')
@@ -135,7 +147,6 @@ export default function TutorSchedulePage() {
 
     dateList.forEach((d) => {
       selectedSlots.forEach((slot) => {
-        // เช็คว่าเคยมีสล็อตนี้ในวันและเวลานี้หรือยัง
         const isAlreadyExist = (existingData || []).some(
           (ex) => ex.available_date === d && ex.time_slot === slot
         )
@@ -161,16 +172,23 @@ export default function TutorSchedulePage() {
     if (error) {
       alert('เกิดข้อผิดพลาด: ' + error.message)
     } else {
-      alert(`เปิดเวลาสอนเรียบร้อยแล้ว (${insertData.length} สล็อตใหม่)!`)
+      alert(`เปิดเวลาสอนเรียบร้อยแล้ว!`)
       setSelectedSlots([])
       fetchSchedules(userEmail, startDate)
     }
     setLoading(false)
   }
 
-  const handleDeleteSlot = async (id: string) => {
-    if (!confirm('ต้องการลบช่วงเวลานี้หรือไม่?')) return
-    await supabase.from('tutor_schedules').delete().eq('id', id)
+  // ลบทุก Row ของช่วงเวลานั้นในวันที่เลือกเพื่อล้างขยะซ้ำ
+  const handleDeleteSlot = async (slotTime: string) => {
+    if (!confirm(`ต้องการลบช่วงเวลา ${slotTime} หรือไม่?`)) return
+    await supabase
+      .from('tutor_schedules')
+      .delete()
+      .eq('tutor_email', userEmail)
+      .eq('available_date', startDate)
+      .eq('time_slot', slotTime)
+
     fetchSchedules(userEmail, startDate)
     fetchAllBooked(userEmail)
   }
@@ -256,7 +274,7 @@ export default function TutorSchedulePage() {
                         💬 ทักแชท
                       </Link>
                       <button
-                        onClick={() => handleDeleteSlot(item.id)}
+                        onClick={() => handleDeleteSlot(item.time_slot)}
                         className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 text-xs font-bold px-3 py-2 rounded-xl transition"
                       >
                         ยกเลิกคลาส
@@ -342,7 +360,7 @@ export default function TutorSchedulePage() {
                 <div className="space-y-2">
                   {existingSchedules.map((item) => (
                     <div
-                      key={item.id}
+                      key={item.time_slot}
                       className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl"
                     >
                       <span className="font-bold text-slate-800">⏰ {item.time_slot}</span>
@@ -353,7 +371,7 @@ export default function TutorSchedulePage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleDeleteSlot(item.id)}
+                          onClick={() => handleDeleteSlot(item.time_slot)}
                           className="text-rose-500 hover:text-rose-700 font-bold px-3 py-1 bg-white border border-rose-100 rounded-lg hover:bg-rose-50 transition"
                         >
                           ลบสล็อต
