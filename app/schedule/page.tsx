@@ -123,14 +123,14 @@ export default function TutorSchedulePage() {
             <label className="block font-bold text-slate-700 mb-1">เลือกวันที่ต้องการเปิดสอน</label>
             <input
               type="date"
-              className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-slate-800"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
               value={selectedDate}
               onChange={handleDateChange}
             />
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-2">เลือกช่วงเวลาที่เปิดสอน (คลิกเลือกได้หลายช่อง)</label>
+            <label className="block font-bold text-slate-700 mb-2">เลือกช่วงเวลาที่เปิดสอน (คลิกเลือกได้หลายช่วง)</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {TIME_SLOTS.map((slot) => {
                 const isAlreadyAdded = existingSchedules.some((item) => item.time_slot === slot)
@@ -151,7 +151,7 @@ export default function TutorSchedulePage() {
                   >
                     {slot} {isAlreadyAdded ? '(เปิดแล้ว)' : ''}
                   </button>
-                );
+                )
               })}
             </div>
           </div>
@@ -160,7 +160,7 @@ export default function TutorSchedulePage() {
             <button
               onClick={handleSaveSchedules}
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold shadow-md transition"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold shadow-md transition disabled:bg-slate-300"
             >
               บันทึกการเปิดสอน ({selectedSlots.length} ช่วงเวลา)
             </button>
@@ -175,17 +175,17 @@ export default function TutorSchedulePage() {
                 {existingSchedules.map((item) => (
                   <div
                     key={item.id}
-                    className="flex justify-between items-center p-3 bg-slate-50 border rounded-xl"
+                    className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl"
                   >
                     <span className="font-bold text-slate-800">⏰ {item.time_slot}</span>
                     {item.is_booked ? (
-                      <span className="text-rose-500 font-bold bg-rose-50 px-2.5 py-1 rounded-lg">
+                      <span className="text-rose-500 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100">
                         ถูกจองแล้ว ({item.student_email})
                       </span>
                     ) : (
                       <button
                         onClick={() => handleDeleteSlot(item.id)}
-                        className="text-rose-500 hover:text-rose-700 font-bold px-2 py-1 bg-white border border-rose-100 rounded-lg"
+                        className="text-rose-500 hover:text-rose-700 font-bold px-2.5 py-1 bg-white border border-rose-100 rounded-lg hover:bg-rose-50 transition"
                       >
                         ลบ
                       </button>
