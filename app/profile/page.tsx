@@ -10,6 +10,10 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [nickname, setNickname] = useState('')
   const [phone, setPhone] = useState('')
+  
+  // ข้อมูลเฉพาะของนักเรียน
+  const [gradeLevel, setGradeLevel] = useState('')
+  
   const [subject, setSubject] = useState('')
   const [price, setPrice] = useState(0)
   const [bio, setBio] = useState('')
@@ -57,6 +61,7 @@ export default function ProfilePage() {
         setName(student.name || '')
         setNickname(student.nickname || '')
         setPhone(student.phone || '')
+        setGradeLevel(student.grade_level || '')
         setSubject(student.target_subject || '')
         setAvatarUrl(student.avatar_url || '')
       }
@@ -117,6 +122,7 @@ export default function ProfilePage() {
           name,
           nickname,
           phone,
+          grade_level: gradeLevel,
           target_subject: subject,
           avatar_url: avatarUrl
         })
@@ -268,13 +274,33 @@ export default function ProfilePage() {
           ) : (
             <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
               <h3 className="font-bold text-slate-700 text-xs">🎓 รายละเอียดการเรียน</h3>
-              <div>
-                <label className="block font-semibold text-slate-600 mb-1">วิชาที่สนใจเรียน</label>
-                <input
-                  type="text"
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={subject} onChange={(e) => setSubject(e.target.value)}
-                />
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-1">ระดับชั้น</label>
+                  <select
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={gradeLevel}
+                    onChange={(e) => setGradeLevel(e.target.value)}
+                  >
+                    <option value="">-- เลือกระดับชั้น --</option>
+                    <option value="ประถมศึกษา">ประถมศึกษา</option>
+                    <option value="มัธยมศึกษาตอนต้น">มัธยมศึกษาตอนต้น</option>
+                    <option value="มัธยมศึกษาตอนปลาย">มัธยมศึกษาตอนปลาย</option>
+                    <option value="อุดมศึกษา / มหาวิทยาลัย">อุดมศึกษา / มหาวิทยาลัย</option>
+                    <option value="บุคคลทั่วไป">บุคคลทั่วไป</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-1">วิชาที่สนใจเรียน</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น วิทยาศาสตร์, อังกฤษ"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={subject} onChange={(e) => setSubject(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           )}
