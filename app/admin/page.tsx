@@ -10,6 +10,9 @@ interface Tutor {
   subject: string
   price: number
   email: string
+  phone?: string
+  bio?: string
+  avatar_url?: string
   bank_name?: string
   bank_account_no?: string
   bank_account_name?: string
@@ -23,8 +26,10 @@ interface Student {
   name: string
   nickname?: string
   email: string
+  phone?: string
   grade_level?: string
   target_subject?: string
+  avatar_url?: string
 }
 
 interface Payment {
@@ -65,6 +70,10 @@ export default function AdminDashboard() {
   const [hasNewMessage, setHasNewMessage] = useState(false)
 
   const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null)
+
+  // State สำหรับ Modal แสดงรายละเอียดของติวเตอร์ และ นักเรียน
+  const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
 
   const [transferModalPayment, setTransferModalPayment] = useState<Payment | null>(null)
   const [payoutSlipFile, setPayoutSlipFile] = useState<File | null>(null)
@@ -852,6 +861,12 @@ export default function AdminDashboard() {
 
                     <div className="pt-2 border-t border-slate-100 flex gap-2">
                       <button
+                        onClick={() => setSelectedTutor(t)}
+                        className="bg-sky-50 text-sky-600 border border-sky-200 py-1.5 px-2 rounded-lg text-[10px] font-bold"
+                      >
+                        👁️ ดูข้อมูล
+                      </button>
+                      <button
                         onClick={() => handleToggleVerifyTutor(t.id, !!t.is_verified)}
                         className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border ${t.is_verified ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}
                       >
@@ -861,7 +876,7 @@ export default function AdminDashboard() {
                         onClick={() => handleToggleSuspendTutor(t.id, isSuspended)}
                         className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold text-white ${isSuspended ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-500 hover:bg-rose-600'}`}
                       >
-                        {isSuspended ? '✅ ปลดระงับ' : '🚫 ระงับติวเตอร์'}
+                        {isSuspended ? '✅ ปลดระงับ' : '🚫 ระงับ'}
                       </button>
                     </div>
                   </div>
@@ -910,6 +925,12 @@ export default function AdminDashboard() {
                         </td>
                         <td className="p-4 text-center space-x-1.5">
                           <button
+                            onClick={() => setSelectedTutor(t)}
+                            className="bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-200 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition"
+                          >
+                            👁️ ดูข้อมูล
+                          </button>
+                          <button
                             onClick={() => handleToggleVerifyTutor(t.id, !!t.is_verified)}
                             className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition"
                           >
@@ -938,10 +959,19 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <div className="block md:hidden space-y-2">
               {students.map((s) => (
-                <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-1">
+                <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-2">
                   <div className="font-bold text-slate-800">{s.name} ({s.nickname || '-'})</div>
                   <p className="text-slate-500 text-[10px]">{s.email}</p>
+                  <p className="text-slate-600 text-[10px]">ระดับชั้น: {s.grade_level || '-'}</p>
                   <p className="text-indigo-600 text-[11px]">สนใจ: {s.target_subject || '-'}</p>
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => setSelectedStudent(s)}
+                      className="w-full bg-sky-50 text-sky-600 border border-sky-200 py-1.5 rounded-lg text-[10px] font-bold"
+                    >
+                      👁️ ดูข้อมูลทั้งหมด
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -952,15 +982,26 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="p-4">ชื่อ</th>
                     <th className="p-4">อีเมล</th>
+                    <th className="p-4">ระดับชั้น</th>
                     <th className="p-4">วิชาสนใจ</th>
+                    <th className="p-4 text-center">รายละเอียด</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {students.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50/50">
-                      <td className="p-4 font-bold">{s.name}</td>
+                      <td className="p-4 font-bold">{s.name} {s.nickname && `(${s.nickname})`}</td>
                       <td className="p-4 text-slate-500">{s.email}</td>
+                      <td className="p-4 font-semibold text-slate-600">{s.grade_level || '-'}</td>
                       <td className="p-4 font-semibold text-indigo-600">{s.target_subject || '-'}</td>
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => setSelectedStudent(s)}
+                          className="bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-200 px-3 py-1.5 rounded-lg font-bold text-[10px] transition"
+                        >
+                          👁️ ดูข้อมูลทั้งหมด
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1049,6 +1090,101 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Modal แสดงรายละเอียดติวเตอร์ */}
+      {selectedTutor && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-black text-slate-800 text-xs md:text-sm">👨‍🏫 ข้อมูลติวเตอร์อย่างละเอียด</h3>
+              <button onClick={() => setSelectedTutor(null)} className="text-slate-400 font-bold hover:text-slate-600 text-sm">✕</button>
+            </div>
+
+            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl">
+              <div className="w-14 h-14 rounded-full bg-indigo-100 overflow-hidden flex items-center justify-center font-black text-indigo-600 text-lg flex-shrink-0">
+                {selectedTutor.avatar_url ? (
+                  <img src={selectedTutor.avatar_url} className="w-full h-full object-cover" />
+                ) : (
+                  selectedTutor.name.charAt(0)
+                )}
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-slate-800 text-xs md:text-sm truncate">{selectedTutor.name} ({selectedTutor.nickname || 'ไม่มีชื่อเล่น'})</h4>
+                <p className="text-xs text-slate-400 truncate">{selectedTutor.email}</p>
+                <p className="text-xs text-indigo-600 font-semibold">📞 {selectedTutor.phone || 'ไม่ได้ระบุเบอร์'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-600">
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
+                <div><span className="font-bold text-slate-400 block text-[10px]">วิชาที่สอน:</span> <span className="font-bold text-indigo-600">{selectedTutor.subject}</span></div>
+                <div><span className="font-bold text-slate-400 block text-[10px]">ค่าสอน:</span> <span className="font-bold text-emerald-600">{selectedTutor.price} ฿/ชม.</span></div>
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-xl">
+                <span className="font-bold text-slate-400 block mb-1 text-[10px]">คำแนะนำตัว / ประวัติ:</span>
+                <p className="bg-white p-2 rounded-lg border border-slate-100 leading-relaxed text-slate-700 max-h-28 overflow-y-auto">{selectedTutor.bio || 'ไม่ได้ระบุ'}</p>
+              </div>
+
+              <div className="bg-indigo-50/60 border border-indigo-100 p-3 rounded-xl space-y-1">
+                <span className="font-bold text-indigo-900 block text-[11px]">🏦 ข้อมูลบัญชีรับเงิน</span>
+                <p><strong>ธนาคาร:</strong> {selectedTutor.bank_name || 'ยังไม่กรอก'}</p>
+                <p><strong>เลขบัญชี/พร้อมเพย์:</strong> {selectedTutor.bank_account_no || 'ยังไม่กรอก'}</p>
+                <p><strong>ชื่อบัญชี:</strong> {selectedTutor.bank_account_name || 'ยังไม่กรอก'}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedTutor(null)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition"
+            >
+              ปิดหน้าต่าง
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal แสดงรายละเอียดนักเรียน */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-black text-slate-800 text-xs md:text-sm">🎓 ข้อมูลนักเรียนอย่างละเอียด</h3>
+              <button onClick={() => setSelectedStudent(null)} className="text-slate-400 font-bold hover:text-slate-600 text-sm">✕</button>
+            </div>
+
+            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 overflow-hidden flex items-center justify-center font-black text-emerald-600 text-lg flex-shrink-0">
+                {selectedStudent.avatar_url ? (
+                  <img src={selectedStudent.avatar_url} className="w-full h-full object-cover" />
+                ) : (
+                  selectedStudent.name.charAt(0)
+                )}
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-slate-800 text-xs md:text-sm truncate">{selectedStudent.name} ({selectedStudent.nickname || 'ไม่มีชื่อเล่น'})</h4>
+                <p className="text-xs text-slate-400 truncate">{selectedStudent.email}</p>
+                <p className="text-xs text-indigo-600 font-semibold">📞 {selectedStudent.phone || 'ไม่ได้ระบุเบอร์'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-600">
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
+                <div><span className="font-bold text-slate-400 block text-[10px]">ระดับชั้น:</span> <span className="font-bold text-slate-800">{selectedStudent.grade_level || 'ไม่ได้ระบุ'}</span></div>
+                <div><span className="font-bold text-slate-400 block text-[10px]">วิชาที่สนใจ:</span> <span className="font-bold text-indigo-600">{selectedStudent.target_subject || 'ไม่ได้ระบุ'}</span></div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedStudent(null)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition"
+            >
+              ปิดหน้าต่าง
+            </button>
+          </div>
+        </div>
+      )}
+
     </main>
   )
 }
