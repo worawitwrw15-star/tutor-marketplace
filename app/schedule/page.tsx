@@ -23,10 +23,8 @@ export default function TutorSchedulePage() {
   const [userEmail, setUserEmail] = useState('')
   const [activeTab, setActiveTab] = useState<'booked' | 'manage'>('booked')
   
-  // รายการคลาสที่ถูกจองแล้วทั้งหมด
   const [allBookedSchedules, setAllBookedSchedules] = useState<any[]>([])
   
-  // จัดการเปิด/ปิดสล็อตเวลา
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
@@ -56,7 +54,7 @@ export default function TutorSchedulePage() {
     fetchSchedules(email, today)
   }
 
-  // ดึงคลาสที่ถูกจองแล้วทั้งหมดของติวเตอร์คนนี้
+  // ดึงรายการที่จองแล้ว (ตัดตัวซ้ำตาม id หรือเวลาถ้าบังเอิญมีข้อมูลซ้ำ)
   async function fetchAllBooked(email: string) {
     const { data } = await supabase
       .from('tutor_schedules')
@@ -65,10 +63,17 @@ export default function TutorSchedulePage() {
       .eq('is_booked', true)
       .order('available_date', { ascending: true })
 
-    setAllBookedSchedules(data || [])
+    // กรองซ้ำกรณีที่มีข้อมูลสล็อตเวลา+วันที่+คนจองเดียวกันหลุดเข้าไป
+    const uniqueBooked = (data || []).filter((item, index, self) =>
+      index === self.findIndex((t) => (
+        t.available_date === item.available_date && t.time_slot === item.time_slot && t.student_email === item.student_email
+      ))
+    )
+
+    setAllBookedSchedules(uniqueBooked)
   }
 
-  // ดึงสล็อตตามวันที่เลือกในโหมดตั้งค่า
+  // ดึงสล็อตทั้งหมดในวันที่เลือก
   async function fetchSchedules(email: string, date: string) {
     setLoading(true)
     const { data } = await supabase
@@ -118,25 +123,45 @@ export default function TutorSchedulePage() {
 
     setLoading(true)
     const dateList = getDatesInRange(startDate, endDate)
+
+    // ดึงข้อมูลเดิมที่มีอยู่แล้วในระบบเพื่อป้องกันการ Insert ซ้ำ
+    const { data: existingData } = await supabase
+      .from('tutor_schedules')
+      .select('available_date, time_slot')
+      .eq('tutor_email', userEmail)
+      .in('available_date', dateList)
+
     const insertData: any[] = []
 
     dateList.forEach((d) => {
       selectedSlots.forEach((slot) => {
-        insertData.push({
-          tutor_email: userEmail,
-          available_date: d,
-          time_slot: slot,
-          is_booked: false
-        })
+        // เช็คว่าเคยมีสล็อตนี้ในวันและเวลานี้หรือยัง
+        const isAlreadyExist = (existingData || []).some(
+          (ex) => ex.available_date === d && ex.time_slot === slot
+        )
+        if (!isAlreadyExist) {
+          insertData.push({
+            tutor_email: userEmail,
+            available_date: d,
+            time_slot: slot,
+            is_booked: false
+          })
+        }
       })
     })
+
+    if (insertData.length === 0) {
+      alert('ช่วงเวลาที่เลือกถูกเปิดไว้อยู่แล้วครับ')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.from('tutor_schedules').insert(insertData)
 
     if (error) {
       alert('เกิดข้อผิดพลาด: ' + error.message)
     } else {
-      alert(`เปิดเวลาสอนเรียบร้อยแล้ว (${dateList.length} วัน)!`)
+      alert(`เปิดเวลาสอนเรียบร้อยแล้ว (${insertData.length} สล็อตใหม่)!`)
       setSelectedSlots([])
       fetchSchedules(userEmail, startDate)
     }
@@ -189,7 +214,7 @@ export default function TutorSchedulePage() {
           </button>
         </div>
 
-        {/* TAB 1: ตารางคลาสที่ถูกจองแล้ว */}
+        {/* TAB 1: คลาสที่ถูกจองแล้ว */}
         {activeTab === 'booked' && (
           <div className="space-y-3">
             <h2 className="text-xs font-bold text-slate-700 flex items-center gap-1">
@@ -244,7 +269,7 @@ export default function TutorSchedulePage() {
           </div>
         )}
 
-        {/* TAB 2: ตั้งค่าเปิด/ปิดสล็อตเวลา */}
+        {/* TAB 2: สล็อตเวลา */}
         {activeTab === 'manage' && (
           <div className="space-y-4 text-xs">
             <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-3">
@@ -254,7 +279,7 @@ export default function TutorSchedulePage() {
                   <span className="text-[10px] text-slate-400 font-medium">ตั้งแต่วันที่:</span>
                   <input
                     type="date"
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800"
                     value={startDate}
                     onChange={handleStartDateChange}
                   />
@@ -264,7 +289,7 @@ export default function TutorSchedulePage() {
                   <input
                     type="date"
                     min={startDate}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                   />
@@ -306,7 +331,7 @@ export default function TutorSchedulePage() {
               </button>
             )}
 
-            {/* รายการสล็อตย่อยตามวันที่เลือก */}
+            {/* รายการสล็อตเวลาในวันที่เลือก */}
             <div className="pt-4 border-t border-slate-100 space-y-2">
               <h3 className="font-bold text-slate-700">
                 สล็อตเวลาที่เปิดสอนในวันที่ {startDate}:
