@@ -193,7 +193,7 @@ export default function Home() {
                 เข้าสู่ระบบ
               </Link>
               <Link
-                href="/login?tab=register"
+                href="/signup"
                 className="px-4 py-2 text-xs md:text-sm font-bold bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl shadow-md shadow-amber-400/20 transition"
               >
                 ลงทะเบียน
@@ -220,7 +220,7 @@ export default function Home() {
 
               <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
                 <Link
-                  href="/login?tab=register"
+                  href="/signup"
                   className="px-6 py-3.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold text-xs md:text-sm rounded-2xl shadow-lg shadow-amber-400/30 transition text-center"
                 >
                   🚀 เริ่มต้นใช้งานฟรี
@@ -326,7 +326,7 @@ export default function Home() {
               </p>
               <div className="pt-2 flex justify-center gap-3">
                 <Link
-                  href="/login?tab=register"
+                  href="/signup"
                   className="px-6 py-3 bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold text-xs md:text-sm rounded-xl transition"
                 >
                   ลงทะเบียนเลย
