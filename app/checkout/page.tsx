@@ -10,7 +10,7 @@ function CheckoutForm() {
   const [userEmail, setUserEmail] = useState('')
   const [bookingDate, setBookingDate] = useState('')
   const [availableSlots, setAvailableSlots] = useState<any[]>([])
-  const [selectedSlot, setSelectedSlot] = useState<any | null>(null)
+  const [selectedSlots, setSelectedSlots] = useState<any[]>([])
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [slipPreview, setSlipPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -60,7 +60,6 @@ function CheckoutForm() {
     }
   }
 
-  // ดึงสล็อตเวลาว่างจากตารางสอนของติวเตอร์
   async function fetchSlots(tEmail: string, date: string) {
     const { data } = await supabase
       .from('tutor_schedules')
@@ -69,8 +68,10 @@ function CheckoutForm() {
       .eq('available_date', date)
       .eq('is_booked', false)
 
-    setAvailableSlots(data || [])
-    setSelectedSlot(null)
+    // เรียงลำดับช่วงเวลาจากเช้าไปเย็น
+    const sorted = (data || []).sort((a, b) => a.time_slot.localeCompare(b.time_slot))
+    setAvailableSlots(sorted)
+    setSelectedSlots([])
   }
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,6 +79,14 @@ function CheckoutForm() {
     setBookingDate(newDate)
     if (tutor?.email) {
       fetchSlots(tutor.email, newDate)
+    }
+  }
+
+  const toggleSelectSlot = (slot: any) => {
+    if (selectedSlots.some((s) => s.id === slot.id)) {
+      setSelectedSlots(selectedSlots.filter((s) => s.id !== slot.id))
+    } else {
+      setSelectedSlots([...selectedSlots, slot])
     }
   }
 
@@ -91,8 +100,8 @@ function CheckoutForm() {
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedSlot) {
-      alert('กรุณาเลือกรอบเวลาเรียนจากตารางสอนก่อนครับ')
+    if (selectedSlots.length === 0) {
+      alert('กรุณาเลือกอย่างน้อย 1 ช่วงเวลาเรียนครับ')
       return
     }
     if (!slipFile || !tutor) {
@@ -119,10 +128,13 @@ function CheckoutForm() {
         })
       }
 
-      const totalAmount = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
+      const unitPrice = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
+      const totalAmount = unitPrice * selectedSlots.length
       const commissionRate = Number(settings?.commission_rate || 15)
       const commissionAmount = (totalAmount * commissionRate) / 100
       const tutorAmount = totalAmount - commissionAmount
+
+      const timeSlotText = selectedSlots.map((s) => s.time_slot).join(', ')
 
       const { error: payError } = await supabase.from('payments').insert([
         {
@@ -133,7 +145,7 @@ function CheckoutForm() {
           tutor_amount: tutorAmount,
           slip_url: slipUrl,
           booking_date: bookingDate,
-          booking_time: selectedSlot.time_slot,
+          booking_time: timeSlotText,
           course_status: 'pending_confirm'
         }
       ])
@@ -144,21 +156,22 @@ function CheckoutForm() {
         return
       }
 
-      // ล็อกสล็อตตารางสอนของติวเตอร์ เปลี่ยนสถานะเป็นถูกจองแล้ว
+      // ล็อกสล็อตทั้งหมดที่เลือก
+      const slotIds = selectedSlots.map((s) => s.id)
       await supabase
         .from('tutor_schedules')
         .update({ is_booked: true, student_email: userEmail })
-        .eq('id', selectedSlot.id)
+        .in('id', slotIds)
 
       await supabase.from('messages').insert([
         {
           sender: userEmail,
           receiver: tutor.email,
-          content: `📅 [แจ้งจองคอร์สเรียน] นักเรียนได้จองตารางสอนวันที่ ${bookingDate} รอบเวลา ${selectedSlot.time_slot} เรียบร้อยแล้วครับ`
+          content: `📅 [แจ้งจองคอร์สเรียน] จองวันที่ ${bookingDate} จำนวน ${selectedSlots.length} ชั่วโมง (${timeSlotText}) เรียบร้อยแล้วครับ`
         }
       ])
 
-      alert('จองตารางสอนและแนบสลิปสำเร็จ!')
+      alert('จองตารางสอนสำเร็จ!')
       router.push('/chat')
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
@@ -168,27 +181,22 @@ function CheckoutForm() {
   }
 
   if (fetching) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">
-        กำลังโหลดข้อมูลตารางสอน...
-      </div>
-    )
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">กำลังโหลดข้อมูล...</div>
   }
 
   if (!tutor) {
     return (
       <main className="min-h-screen bg-slate-50 p-4 flex flex-col items-center justify-center text-center space-y-3">
-        <p className="text-xs text-slate-500 font-bold">ไม่พบข้อมูลติวเตอร์ หรือลิงก์ไม่ถูกต้อง</p>
-        <Link href="/" className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl">
-          กลับหน้าแรก
-        </Link>
+        <p className="text-xs text-slate-500 font-bold">ไม่พบข้อมูลติวเตอร์</p>
+        <Link href="/" className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl">กลับหน้าแรก</Link>
       </main>
     )
   }
 
   const unitPrice = Number(tutor.price) < 50 ? 50 : Number(tutor.price)
+  const totalAmount = unitPrice * (selectedSlots.length || 1)
   const promptpayNumber = settings?.promptpay_number || '0649538717'
-  const qrCodeUrl = `https://promptpay.io/${promptpayNumber}/${unitPrice}.png`
+  const qrCodeUrl = `https://promptpay.io/${promptpayNumber}/${totalAmount}.png`
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8 flex justify-center items-center">
@@ -215,32 +223,38 @@ function CheckoutForm() {
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">2. เลือกรอบเวลาว่างของติวเตอร์</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block font-bold text-slate-700">2. เลือกรอบเวลา (เลือกได้หลายช่วงเวลา)</label>
+              <span className="text-[11px] font-bold text-indigo-600">เลือกแล้ว {selectedSlots.length} ชม.</span>
+            </div>
             {availableSlots.length === 0 ? (
               <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-amber-700 text-center font-medium">
                 ⚠️ ติวเตอร์ยังไม่ได้เปิดตารางสอนในวันที่เลือก กรุณาเปลี่ยนไปเลือกวันอื่นครับ
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                {availableSlots.map((slot) => (
-                  <button
-                    type="button"
-                    key={slot.id}
-                    onClick={() => setSelectedSlot(slot)}
-                    className={`p-3 rounded-xl font-bold border transition text-center ${
-                      selectedSlot?.id === slot.id
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-slate-50 text-slate-800 border-slate-200 hover:border-indigo-400'
-                    }`}
-                  >
-                    ⏰ {slot.time_slot}
-                  </button>
-                ))}
+                {availableSlots.map((slot) => {
+                  const isSelected = selectedSlots.some((s) => s.id === slot.id)
+                  return (
+                    <button
+                      type="button"
+                      key={slot.id}
+                      onClick={() => toggleSelectSlot(slot)}
+                      className={`p-3 rounded-xl font-bold border transition text-center ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                          : 'bg-slate-50 text-slate-800 border-slate-200 hover:border-indigo-400'
+                      }`}
+                    >
+                      ⏰ {slot.time_slot} {isSelected && '✓'}
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {selectedSlot && (
+          {selectedSlots.length > 0 && (
             <>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center space-y-3">
                 <h3 className="font-extrabold text-xs text-slate-700">📱 สแกน QR Code เพื่อชำระเงิน</h3>
@@ -248,8 +262,8 @@ function CheckoutForm() {
                   <img src={qrCodeUrl} alt="PromptPay QR Code" className="w-44 h-44 object-contain mx-auto" />
                 </div>
                 <div className="text-xs space-y-0.5">
-                  <p className="text-slate-500">พร้อมเพย์: <strong className="text-slate-800">{promptpayNumber}</strong></p>
-                  <p className="text-slate-500">ยอดชำระสุทธิ: <strong className="text-emerald-600 text-base font-black">{unitPrice.toLocaleString()} บาท</strong></p>
+                  <p className="text-slate-500">จำนวนที่เลือก: <strong className="text-indigo-600">{selectedSlots.length} ชั่วโมง</strong></p>
+                  <p className="text-slate-500">ยอดชำระสุทธิ: <strong className="text-emerald-600 text-base font-black">{totalAmount.toLocaleString()} บาท</strong></p>
                 </div>
               </div>
 
@@ -263,7 +277,7 @@ function CheckoutForm() {
                 type="submit" disabled={loading}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition disabled:bg-slate-300"
               >
-                {loading ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการจองตารางสอน & ส่งสลิป'}
+                {loading ? 'กำลังบันทึกข้อมูล...' : `ยืนยันการจอง ${selectedSlots.length} ชม. (${totalAmount.toLocaleString()} บาท)`}
               </button>
             </>
           )}
@@ -275,7 +289,7 @@ function CheckoutForm() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">กำลังโหลดหน้าชำระเงิน...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">กำลังโหลด...</div>}>
       <CheckoutForm />
     </Suspense>
   )
