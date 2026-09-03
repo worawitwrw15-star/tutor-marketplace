@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function EditTutorPostPage() {
+export default function RegisterTutor() {
   const [email, setEmail] = useState('')
   const [subject, setSubject] = useState('')
   const [price, setPrice] = useState('')
@@ -129,8 +129,10 @@ export default function EditTutorPostPage() {
           >
             ← หน้าหลัก
           </Link>
+
+          {/* 🟢 แก้ไขลิงก์ปุ่มมุมขวาบนไปที่ /profile */}
           <Link
-            href="/settings"
+            href="/profile"
             className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl border border-indigo-100 transition flex items-center gap-1"
           >
             ⚙️ ตั้งค่าส่วนตัว
@@ -201,7 +203,7 @@ export default function EditTutorPostPage() {
 
         <form onSubmit={handleSubmit} className={`space-y-4 text-xs ${isSuspended ? 'opacity-40 pointer-events-none' : ''}`}>
           
-          {/* Detailed Teaching Info */}
+          {/* Teaching Info */}
           <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
             <h3 className="font-bold text-slate-700 text-xs">📚 รายละเอียดการสอนที่จะแสดงผล</h3>
             
@@ -255,11 +257,11 @@ export default function EditTutorPostPage() {
           </button>
         </form>
 
-        {/* Link back to Personal Settings */}
+        {/* 🟢 แก้ไขลิงก์ด้านล่างสุดไปที่ /profile */}
         <div className="text-center pt-2 border-t border-slate-100">
           <p className="text-[11px] text-slate-400">
             ต้องการเปลี่ยนรูปโปรไฟล์ ชื่อเล่น หรือบัญชีรับเงิน?{' '}
-            <Link href="/settings" className="text-indigo-600 font-bold hover:underline">
+            <Link href="/profile" className="text-indigo-600 font-bold hover:underline">
               ไปที่หน้าตั้งค่าส่วนตัว
             </Link>
           </p>
