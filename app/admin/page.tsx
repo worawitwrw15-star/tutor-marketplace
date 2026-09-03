@@ -80,6 +80,7 @@ export default function AdminDashboard() {
   const [chatMessages, setChatMessages] = useState<Message[]>([])
   const [chatPartners, setChatPartners] = useState<string[]>([])
   const [activeChatPartner, setActiveChatPartner] = useState<string>('')
+  const [unreadChatPartners, setUnreadChatPartners] = useState<Set<string>>(new Set())
   const [chatInput, setChatInput] = useState('')
   const [sendingChat, setSendingChat] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -91,6 +92,18 @@ export default function AdminDashboard() {
       fetchAdminData()
     }
   }, [])
+
+  // เคลียร์ unread เมื่อเลือกคู่สนทนานั้นๆ
+  useEffect(() => {
+    if (activeChatPartner) {
+      setUnreadChatPartners((prev) => {
+        const next = new Set(prev)
+        next.delete(activeChatPartner)
+        if (next.size === 0) setHasNewMessage(false)
+        return next
+      })
+    }
+  }, [activeChatPartner])
 
   // Realtime Subscriptions สำหรับรายการโอนเงิน & แชทแอดมิน
   useEffect(() => {
@@ -109,11 +122,12 @@ export default function AdminDashboard() {
           const partner = newMsg.sender === ADMIN_EMAIL ? newMsg.receiver : newMsg.sender
           if (partner) {
             setChatPartners((prev) => Array.from(new Set([...prev, partner])))
-          }
 
-          // แจ้งเตือนกระพริบสีแดงหากผู้ส่งไม่ใช่แอดมินเอง
-          if (newMsg.sender !== ADMIN_EMAIL) {
-            setHasNewMessage(true)
+            // หากเป็นข้อความส่งเข้าแอดมิน และไม่ได้เปิดแชทคู่สนทนานั้นอยู่ ให้ติดสถานะยังไม่ได้อ่าน
+            if (newMsg.receiver === ADMIN_EMAIL && partner !== activeChatPartner) {
+              setUnreadChatPartners((prev) => new Set(prev).add(partner))
+              setHasNewMessage(true)
+            }
           }
         }
       })
@@ -136,7 +150,7 @@ export default function AdminDashboard() {
       supabase.removeChannel(chatChannel)
       supabase.removeChannel(paymentChannel)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, activeChatPartner])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -145,7 +159,9 @@ export default function AdminDashboard() {
   const handleTabChange = (tab: 'payments' | 'tutors' | 'students' | 'chat' | 'settings') => {
     setActiveTab(tab)
     if (tab === 'payments') setHasNewPayment(false)
-    if (tab === 'chat') setHasNewMessage(false)
+    if (tab === 'chat') {
+      if (unreadChatPartners.size === 0) setHasNewMessage(false)
+    }
   }
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -182,16 +198,35 @@ export default function AdminDashboard() {
     setChatMessages(allMsgs)
 
     const partners = new Set<string>()
+    const unreadPartners = new Set<string>()
+    const lastMsgPerPartner: Record<string, Message> = {}
+
     allMsgs.forEach((m) => {
-      if (m.sender === ADMIN_EMAIL && m.receiver) partners.add(m.receiver)
-      if (m.receiver === ADMIN_EMAIL && m.sender) partners.add(m.sender)
+      const partner = m.sender === ADMIN_EMAIL ? m.receiver : m.sender
+      if (partner) {
+        partners.add(partner)
+        lastMsgPerPartner[partner] = m
+      }
     })
 
     const partnerArray = Array.from(partners)
     setChatPartners(partnerArray)
-    if (partnerArray.length > 0 && !activeChatPartner) {
-      setActiveChatPartner(partnerArray[0])
+
+    let initialActive = activeChatPartner
+    if (partnerArray.length > 0 && !initialActive) {
+      initialActive = partnerArray[0]
+      setActiveChatPartner(initialActive)
     }
+
+    // คำนวณผู้ติดต่อที่มีข้อความยังไม่อ่าน
+    Object.entries(lastMsgPerPartner).forEach(([partner, lastMsg]) => {
+      if (lastMsg.receiver === ADMIN_EMAIL && partner !== initialActive) {
+        unreadPartners.add(partner)
+      }
+    })
+
+    setUnreadChatPartners(unreadPartners)
+    if (unreadPartners.size > 0) setHasNewMessage(true)
 
     setPayments(payData || [])
     setTutors(tutorData || [])
@@ -203,7 +238,6 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
-  // ฟังก์ชันระงับ / ปลดระงับติวเตอร์
   const handleToggleSuspendTutor = async (tutorId: string, currentSuspendedStatus: boolean) => {
     const nextSuspendedState = !currentSuspendedStatus
     const actionText = nextSuspendedState ? 'ระงับการใช้งาน' : 'ปลดระงับ'
@@ -226,7 +260,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // ฟังก์ชันสลับสถานะยืนยันตัวตนติวเตอร์
   const handleToggleVerifyTutor = async (tutorId: string, currentVerifyStatus: boolean) => {
     const nextStatus = !currentVerifyStatus
     const { error } = await supabase
@@ -510,7 +543,7 @@ export default function AdminDashboard() {
             }`}
           >
             <span>💬 แชทช่วยเหลือ ({chatPartners.length})</span>
-            {hasNewMessage && (
+            {(hasNewMessage || unreadChatPartners.size > 0) && (
               <span className="flex h-2.5 w-2.5 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
@@ -549,7 +582,7 @@ export default function AdminDashboard() {
         {/* Tab 1: Payments */}
         {activeTab === 'payments' && (
           <div className="space-y-3">
-            {/* แสดงผลมือถือ (Mobile View) */}
+            {/* Mobile View */}
             <div className="block md:hidden space-y-3">
               {payments.map((p) => {
                 const tutorInfo = tutors.find((t) => t.email === p.tutor_email)
@@ -616,7 +649,7 @@ export default function AdminDashboard() {
               })}
             </div>
 
-            {/* แสดงผลคอมพิวเตอร์ (Desktop View) */}
+            {/* Desktop View */}
             <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
@@ -694,19 +727,36 @@ export default function AdminDashboard() {
                 {chatPartners.length === 0 ? (
                   <p className="text-center text-xs text-slate-400 p-4">ยังไม่มีใครทักแชทเข้ามา</p>
                 ) : (
-                  chatPartners.map((partner) => (
-                    <button
-                      key={partner}
-                      onClick={() => setActiveChatPartner(partner)}
-                      className={`w-full p-2.5 text-left rounded-xl text-xs font-semibold transition truncate block ${
-                        activeChatPartner === partner
-                          ? 'bg-indigo-600 text-white shadow-md'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      💬 {partner}
-                    </button>
-                  ))
+                  chatPartners.map((partner) => {
+                    const isActive = activeChatPartner === partner
+                    const hasUnread = unreadChatPartners.has(partner)
+                    return (
+                      <button
+                        key={partner}
+                        onClick={() => setActiveChatPartner(partner)}
+                        className={`w-full p-2.5 text-left rounded-xl text-xs font-semibold transition truncate flex items-center justify-between ${
+                          isActive
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="truncate pr-2">💬 {partner}</span>
+
+                        {/* แจ้งเตือนข้อความใหม่ในรายการผู้ติดต่อแต่ละคน */}
+                        {hasUnread && !isActive && (
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded animate-pulse">
+                              ข้อความใหม่
+                            </span>
+                            <span className="flex h-2.5 w-2.5 relative">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-white"></span>
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })
                 )}
               </div>
             </div>
