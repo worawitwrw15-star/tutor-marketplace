@@ -6,6 +6,7 @@ import Link from 'next/link'
 
 export default function RegisterTutor() {
   const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
   const [price, setPrice] = useState('')
   const [bio, setBio] = useState('')
@@ -33,6 +34,10 @@ export default function RegisterTutor() {
     const userEmail = session.user.email || ''
     setEmail(userEmail)
 
+    // ดึงชื่อจาก User Metadata ก่อน (กรณีสมัครด้วย Email/Password หรือ Social Login)
+    const userMetaName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || ''
+    setName(userMetaName)
+
     const { data: tutor } = await supabase
       .from('tutors')
       .select('*')
@@ -40,11 +45,24 @@ export default function RegisterTutor() {
       .maybeSingle()
 
     if (tutor) {
+      // หากในฐานข้อมูลมีชื่ออยู่แล้ว ให้ใช้ชื่อจากตาราง tutors
+      setName(tutor.name || userMetaName || userEmail.split('@')[0])
       setSubject(tutor.subject || '')
       setPrice(tutor.price ? String(tutor.price) : '')
       setBio(tutor.bio || '')
       setIsActive(tutor.is_active !== false)
       setIsSuspended(tutor.is_suspended === true)
+    }
+    
+    // ดึงข้อมูลกรณีผู้ใช้สร้างโปรไฟล์ไว้ในตาราง profiles
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('email', userEmail)
+      .maybeSingle()
+
+    if (profile && profile.name) {
+      setName(profile.name)
     }
 
     setLoading(false)
@@ -61,8 +79,12 @@ export default function RegisterTutor() {
     setSubmitting(true)
 
     try {
+      // ป้องกันกรณี name ยังคงเป็นค่าว่าง ให้ใช้อีเมลส่วนหน้าแทน
+      const finalName = name.trim() || email.split('@')[0] || 'Tutor'
+
       const tutorData = {
         email,
+        name: finalName, // 🟢 แนบค่า name เพื่อแก้ปัญหา null value violation
         subject,
         price: Number(price),
         bio,
@@ -130,7 +152,6 @@ export default function RegisterTutor() {
             ← หน้าหลัก
           </Link>
 
-          {/* 🟢 แก้ไขลิงก์ปุ่มมุมขวาบนไปที่ /profile */}
           <Link
             href="/profile"
             className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl border border-indigo-100 transition flex items-center gap-1"
@@ -148,7 +169,7 @@ export default function RegisterTutor() {
           </p>
         </div>
 
-        {/* 🚨 กรณีถูกแอดมินระงับการใช้งาน */}
+        {/* กรณีถูกแอดมินระงับการใช้งาน */}
         {isSuspended ? (
           <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 text-center space-y-3">
             <span className="text-3xl">🚫</span>
@@ -166,7 +187,7 @@ export default function RegisterTutor() {
             </Link>
           </div>
         ) : (
-          /* 🟢 ปุ่มสลับสถานะเปิด/ปิด รับสอนชั่วคราวด้วยตนเอง */
+          /* ปุ่มสลับสถานะเปิด/ปิด รับสอนชั่วคราวด้วยตนเอง */
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
             <label className="block text-xs font-bold text-slate-700">📌 สถานะการแสดงประกาศสอน</label>
             <div className="grid grid-cols-2 gap-2">
@@ -207,9 +228,23 @@ export default function RegisterTutor() {
           <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
             <h3 className="font-bold text-slate-700 text-xs">📚 รายละเอียดการสอนที่จะแสดงผล</h3>
             
+            {/* เพิ่ม Input แสดง/แก้ไขชื่อโปรไฟล์เพื่อให้ผู้ใช้ตรวจสอบก่อนบันทึก */}
+            <div>
+              <label className="block font-semibold text-slate-600 mb-1">ชื่อ-นามสกุล ที่จะแสดงในประกาศ *</label>
+              <input
+                type="text"
+                required
+                disabled={isSuspended}
+                placeholder="เช่น สมชาย ใจดี"
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">วิชาที่สอน</label>
+                <label className="block font-semibold text-slate-600 mb-1">วิชาที่สอน *</label>
                 <input
                   type="text"
                   required
@@ -222,7 +257,7 @@ export default function RegisterTutor() {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">ค่าสอน (฿/ชม.)</label>
+                <label className="block font-semibold text-slate-600 mb-1">ค่าสอน (฿/ชม.) *</label>
                 <input
                   type="number"
                   required
@@ -257,7 +292,6 @@ export default function RegisterTutor() {
           </button>
         </form>
 
-        {/* 🟢 แก้ไขลิงก์ด้านล่างสุดไปที่ /profile */}
         <div className="text-center pt-2 border-t border-slate-100">
           <p className="text-[11px] text-slate-400">
             ต้องการเปลี่ยนรูปโปรไฟล์ ชื่อเล่น หรือบัญชีรับเงิน?{' '}
